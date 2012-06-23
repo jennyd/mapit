@@ -40,6 +40,10 @@ class Command(NoArgsCommand):
             #   London borough
             #   Scilly Isles
             'CPC': ('DIS', 'UTA', 'MTD', 'LBO', 'COI'),
+            # A Police neighbourhood's parent is a Police force:
+            # (Police child-parent relationships are set when they are imported,
+            # so this isn't actually used here)
+            # 'PON': 'POF',
         }
         for area in Area.objects.filter(
             type__code__in=parentmap.keys(),
