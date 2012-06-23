@@ -1,5 +1,6 @@
 # Shared functions for postcode and area importing.
 
+import re
 import sys
 
 from django.core.management.base import LabelCommand
