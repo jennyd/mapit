@@ -282,7 +282,7 @@ class NameType(models.Model):
 class Name(models.Model):
     area = models.ForeignKey(Area, related_name='names')
     type = models.ForeignKey(NameType, related_name='names')
-    name = models.CharField(max_length=100)
+    name = models.CharField(max_length=150)
     objects = Manager()
 
     class Meta:
