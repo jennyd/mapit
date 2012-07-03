@@ -58,9 +58,10 @@ def parse_police_names_json(names_path):
                 raise Exception, "Force id %s found twice in JSON" % force['id']
             names_dict[force['id']] = (force['name'], {})
 
-    # For finding the maximum code length, to avoid having to change the field
-    # for a third time:
+    # For finding the maximum code and name lengths, to avoid having to change
+    # fields again:
     code_max_length = 0
+    name_max_length = 0
 
     for force_id in names_dict.keys():
         with open(os.path.join(names_path, force_id+'_neighbourhoods.json')) as f:
@@ -71,6 +72,9 @@ def parse_police_names_json(names_path):
                 # Find the maximum code length:
                 if len(neighbourhood['id']) > code_max_length:
                     code_max_length = len(neighbourhood['id'])
+                # Find the maximum name length:
+                if len(neighbourhood['name']) > name_max_length:
+                    name_max_length = len(neighbourhood['name'])
 
                 # As above, convert HTML entities:
                 neighbourhood['name'] = h.unescape(neighbourhood['name'])
@@ -80,6 +84,7 @@ def parse_police_names_json(names_path):
 
     # print json.dumps(names_dict, indent=4)
     print 'code_max_length:', code_max_length
+    print 'name_max_length:', name_max_length
     return names_dict
 
 
