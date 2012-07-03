@@ -296,7 +296,10 @@ class Name(models.Model):
         n = n.replace('St. ', 'St ')
         if name.type.code == 'M': return n
         if name.type.code == 'S': return n
-        if name.type.code == 'P': return n
+        if name.type.code == 'P':
+            if 'Ribble Valley Rurals' in n:
+                n = 'Ribble Valley Rurals'
+            return n
         # Type must be 'O' here
         n = re.sub(' Euro Region$', '', n) # EUR
         n = re.sub(' (Burgh|Co|Boro) Const$', '', n) # WMC
