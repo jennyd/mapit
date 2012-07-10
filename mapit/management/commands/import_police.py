@@ -87,6 +87,32 @@ def parse_police_names_json(names_path):
     print 'name_max_length:', name_max_length
     return names_dict
 
+def create_two_d_polygon(area, polygon):
+    """
+    This takes an area and a GEOSGeometry polygon, and creates and returns a
+    Geometry instance with a two-dimensional polygon for an area.
+    """
+    must_be_two_d = re.sub(r'([\d.-]+\s+[\d.-]+)(\s+[\d.-]+)(,|\)\))', r'\1\3', polygon.wkt)
+    return area.polygons.create(polygon=must_be_two_d)
+
+def save_polygons_or_multipolygons(area, geometry):
+    """
+    This takes an area and a GEOSGeometry object, and saves the geometry as
+    one or more Geometry.polygons.
+    """
+    if geometry == None:
+        return
+#    print 'type(geometry):', type(geometry)
+    if geometry.geom_type == 'MultiPolygon':
+        area.polygons.all().delete()
+        for polygon in geometry:
+            new_polygon = create_two_d_polygon(area, polygon)
+    elif geometry.geom_type == 'Polygon':
+        area.polygons.all().delete()
+        new_polygon = create_two_d_polygon(area, geometry)
+    else:
+        raise Exception, "geometry for %s is neither a Polygon or a MultiPolygon" % area
+
 
 class Command(BaseCommand):
     help = 'Import KML data'
@@ -114,7 +140,8 @@ class Command(BaseCommand):
                                      parent_area=parent_area)
             except Area.DoesNotExist:
                 m = Area(
-                    name            = name,
+                    # name is set by Name.save():
+                    # name            = name,
                     type            = area_type,
                     country         = country,
                     parent_area     = parent_area,
@@ -131,28 +158,74 @@ class Command(BaseCommand):
                 # Check that the feature is valid before transforming:
                 geos_geometry = feat.geom.geos
                 valid_before = geos_geometry.valid
-                print '    Geometry valid before transforming:', valid_before
-                if (not valid_before) and ('Self-intersection' not in feat.geom.geos.valid_reason):
+#                print '    Geometry valid before transforming:', valid_before
+                if (not valid_before) and ('Self-intersection' not in geos_geometry.valid_reason):
                     raise Exception, 'Invalid geometry found before transforming, and not a self-intersection'
 
+                # feat is a GDAL Feature
                 g = feat.geom.transform(27700, clone=True)
+                # g is an OGRGeometry polygon
+                # g.geos returns a GEOSGeometry polygon
+#                print 'type(g):', type(g)
+#                print 'type(g.geos):', type(g.geos)
+
+                # For save_polygons_or_multipolygons:
+                g = g.geos
 
                 # Check that the feature is still valid after transforming:
-                print '    Geometry valid after transforming:', g.geos.valid
+#                print '    Geometry valid after transforming:', g.geos.valid
 #                if not g.geos.valid:
+                if not g.valid:
 #                    raise Exception, 'Invalid geometry found after transforming'
+                    print '    Simplifying polygon'
+                    # Try to fix the polygon to make it valid, at least:
+                    # This seems to create a new valid geometry (Polygon or
+                    # MultiPolygon) covering pretty much the same areas as the
+                    # original invalid one appears to. Many originally invalid
+                    # polygons look as though they have just one misplaced point;
+                    # this tends to create a new point at the self-intersection
+                    # and remove the extra area, if it is very small.
 
-                poly = [ g ]
+                    # For save_polygons_or_multipolygons:
+                    g = g.simplify(preserve_topology=False)
+
+#                    g = g.geos.simplify(preserve_topology=False)
+                    # g is now a GEOSGeometry polygon...
+#                    print 'type(g) after simplifying:', type(g)
+#                    print 'g.wkt:', g.wkt
+#                    print 'g.hasz:', g.hasz
+#                    print 'g.srid:', g.srid
+
+                    # ...but save_polygons expects an OGRGeometry polygon:
+#                    g = g.ogr
+#                    print 'type(g) back to OGR:', type(g)
+
+#                    if not g.geos.valid:
+                    if not g.valid:
+                        raise Exception, 'Geometry still invalid after simplifying'
+
+#                if g.geos.geom_type == 'MultiPolygon':
+#                    poly = g
+#                elif g.geos.geom_type == 'Polygon':
+#                    poly = [ g ]
+#                else:
+#                    raise Exception, "poly is neither a Polygon or a Multipolygon"
             else:
                 # Force area polygons are updated later from their children's
                 # polygons:
-                poly = None
+#                poly = None
+                g = None
 
             if options['commit']:
                 m.save()
                 m.names.update_or_create({ 'type': name_type }, { 'name': name })
                 m.codes.update_or_create({ 'type': code_type }, { 'code': code })
-                save_polygons({ m.id : (m, poly) })
+                # save_polygons({ m.id : (m, poly) })
+                # poly[:] = [] in save_polygons breaks on MultiPolygons
+                # ('TypeError: 'MultiPolygon' object does not support item
+                # assignment'), so just create Geometries here instead:
+                save_polygons_or_multipolygons(m, g)
+
 
                 # Keep track of neighbourhood geometries which were invalid
                 # before transforming:
@@ -160,7 +233,7 @@ class Command(BaseCommand):
                     # raise Exception, 'Invalid geometry found before transforming'
                     # tuple of (number of points, area):
                     tup = (geos_geometry.num_coords, m)
-                    print 'invalid_before.append():', tup
+#                    print 'invalid_before.append():', tup
                     invalid_before.append(tup)
                     # This uses the area id as the key, whereas
                     # invalid_polygons_dict uses the geometry id as the key.
@@ -177,16 +250,17 @@ class Command(BaseCommand):
 
 
         # names_path should contain an extra file for the names of all forces:
-        if len(os.listdir(kml_path)) + 1 != len(os.listdir(names_path)):
+        # if len(os.listdir(kml_path)) + 1 != len(os.listdir(names_path)):
+
+        # The May 2012 KML dataset includes '.DS_Store' in the root directory,
+        # making os.listdir(kml_path) one longer than it was before:
+        if len(os.listdir(kml_path)) != len(os.listdir(names_path)):
+#            print 'len(os.listdir(kml_path)):', len(os.listdir(kml_path))
+#            print 'len(os.listdir(names_path)):', len(os.listdir(names_path))
             raise Exception, "The two datasets contain different numbers of forces!"
 
 
         names_dict = parse_police_names_json(names_path)
-
-# FIXME check these against each other, but perhaps somewhere more sensible
-#        neighbourhood_kmls_codes_set = set([])
-#        neighbourhood_names_codes_set = set([])
-
 
         # These are for both forces and neighbourhoods:
         neighbourhood_area_type = Type.objects.get(code='PON')
@@ -234,10 +308,26 @@ class Command(BaseCommand):
         missing_names_dict = {}
         # missing_names_dict[neighbourhood.id] = (force_code, neighbourhood_code)
 
+        # This stores neighbourhood and force codes from the name files which
+        # have no matching kmls, to serialize to JSON and save at the end:
+        extra_names = []
+        # extra_names.append({'force_code': force_code,
+        #                     'neighbourhood_code': neighbourhood_code})
+
+        # This stores codes of forces on which unionagg() fails, to serialize
+        # to JSON and save at the end:
+        force_unionagg_none_list = []
+        # force_unionagg_none_list.append(force_code)
+
 
         for force_code in os.listdir(kml_path):
+            # The May 2012 KML dataset includes '.DS_Store' in the root
+            # directory; ignore it:
+            if force_code == '.DS_Store':
+                continue
+
             if force_code in names_dict.keys():
-                force_name = names_dict[force_code][0]
+                force_name, force_names_dict = names_dict[force_code]
             else:
                 raise Exception, "Name for force %s not found" % force_code
                 # print "Name for force %s not found, using code instead" % force_code
@@ -261,22 +351,26 @@ class Command(BaseCommand):
 
 
             # Start dealing with neighbourhoods in this force:
+            neighbourhood_kmls_codes_list = []
 
             # parent_area needs to be set here, rather than using find_parents.py:
             parent_area = force
             area_type = neighbourhood_area_type
             force_directory = os.path.join(kml_path, force_code)
+
             for neighbourhood_kml in os.listdir(force_directory):
                 neighbourhood_code = re.sub('\.kml$', '', neighbourhood_kml)
-                if neighbourhood_code in names_dict[force_code][1].keys():
-                    neighbourhood_name = names_dict[force_code][1][neighbourhood_code]
+                # This is used to find any extra names later:
+                neighbourhood_kmls_codes_list.append(neighbourhood_code)
+                if neighbourhood_code in force_names_dict.keys():
+                    neighbourhood_name = force_names_dict[neighbourhood_code]
                     name_missing = False
                 else:
                     # raise Exception, "Name for %s in %s not found" % (neighbourhood_code, force_name)
                     print "Name for %s in %s not found, using neighbourhood_code instead" % (neighbourhood_code, force_name)
                     neighbourhood_name = neighbourhood_code
                     name_missing = True
-                print "  Importing neighbourhood %s from police force %s" % (neighbourhood_name, force_name)
+                print "  Importing neighbourhood %s (%s) from %s" % (neighbourhood_name, neighbourhood_code, force_name)
 
                 # Need to parse the KML manually to get the ExtendedData
                 kml_data = KML()
@@ -314,30 +408,46 @@ class Command(BaseCommand):
                     else:
                         continue
 
+            # Keep track of any extra names without KML files for this force:
+            neighbourhood_kmls_codes_set = set(neighbourhood_kmls_codes_list)
+            neighbourhood_names_codes_set = set(force_names_dict.keys())
+            extra_codes_set = neighbourhood_names_codes_set - neighbourhood_kmls_codes_set
+            for neighbourhood_code in extra_codes_set:
+                extra_names.append({'force_code': force_code,
+                                    'neighbourhood_code': neighbourhood_code,
+                                    'neighbourhood_name': force_names_dict[neighbourhood_code]})
 
-            # Create a force area polygon from its neighbourhood children,
+
+            # Create a force area geometry from its neighbourhood children,
             # excluding invalid polygons:
-            force_poly = Geometry.objects.filter(area__parent_area_id=force.id).exclude(id__in=invalid_polygons_dict.keys()).unionagg()
-            print 'force_poly.valid:', force_poly.valid
-            print 'force_poly.geom_type', force_poly.geom_type
+            force_geometry = Geometry.objects.filter(area__parent_area_id=force.id).exclude(id__in=invalid_polygons_dict.keys()).unionagg()
+            # unionagg() fails on some forces despite all their children's
+            # polygons being valid: (gloucestershire, staffordshire etc)
+            # AttributeError: 'NoneType' object has no attribute 'valid'
+            try:
+                print 'force_geometry.valid:', force_geometry.valid
+                print 'force_geometry.geom_type', force_geometry.geom_type
+            except AttributeError:
+                force_unionagg_none_list.append(force_code)
+                print 'unionagg() is None for %s' % force_name
             if options['commit']:
                 # unionagg() gives us a nice polygon or multipolygon already, so
                 # we can just save it directly without having to go through
                 # save_polygons:
-                if force_poly.geom_type == 'MultiPolygon':
-                    force.polygons.all().delete()
-                    for p in force_poly:
-                        force.polygons.create(polygon=p)
-                elif force_poly.geom_type == 'Polygon':
-                    force.polygons.all().delete()
-                    force.polygons.create(polygon=force_poly)
-                else:
-                    raise Exception, "force_poly for %s is neither a Polygon or a Multipolygon" % force.name
+                save_polygons_or_multipolygons(force, force_geometry)
             else:
-                print '(not trying to create force polygon(s) as --commit not specified)'
+                print '(not trying to create force geometries as --commit not specified)'
 
 
         # Finally, print and save helpful details about problems with the datasets:
+
+        save_path = '../data/Police-data-problems/'
+        if not os.access(save_path, os.F_OK):
+            os.mkdir(save_path)
+
+        print ''
+        print '----------------------------------------'
+        print ''
         print '%d features invalid before transformation (see invalid_before.json)' % len(invalid_before)
 
         with open(os.path.join(save_path, 'invalid_before.json'), 'w') as f:
@@ -364,6 +474,18 @@ class Command(BaseCommand):
         with open(os.path.join(save_path, 'missing_names.json'), 'w') as f:
             print 'Saving missing_names.json'
             json.dump(missing_names_dict, f, indent=4)
+
+        print '%d extra neighbourhood names were found (see extra_names.json)' % len(extra_names)
+
+        with open(os.path.join(save_path, 'extra_names.json'), 'w') as f:
+            print 'Saving extra_names.json'
+            json.dump(extra_names, f, indent=4)
+
+        print 'Unionagg() failed for %d forces (see force_unionagg_none.json)' % len(force_unionagg_none_list)
+
+        with open(os.path.join(save_path, 'force_unionagg_none.json'), 'w') as f:
+            print 'Saving force_unionagg_none.json'
+            json.dump(force_unionagg_none_list, f, indent=4)
 
 
 class KML(ContentHandler):
