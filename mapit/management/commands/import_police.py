@@ -46,7 +46,6 @@ def parse_police_names_json(names_path):
     h = HTMLParser.HTMLParser()
 
     with open(os.path.join(names_path, 'forces.json')) as f:
-        # print 'Parsing force names'
         force_names = json.load(f)
         names_dict = {}
         for force in force_names:
@@ -102,7 +101,6 @@ def save_polygons_or_multipolygons(area, geometry):
     """
     if geometry == None:
         return
-#    print 'type(geometry):', type(geometry)
     if geometry.geom_type == 'MultiPolygon':
         area.polygons.all().delete()
         for polygon in geometry:
@@ -158,72 +156,42 @@ class Command(BaseCommand):
                 # Check that the feature is valid before transforming:
                 geos_geometry = feat.geom.geos
                 valid_before = geos_geometry.valid
-#                print '    Geometry valid before transforming:', valid_before
                 if (not valid_before) and ('Self-intersection' not in geos_geometry.valid_reason):
                     raise Exception, 'Invalid geometry found before transforming, and not a self-intersection'
 
                 # feat is a GDAL Feature
                 g = feat.geom.transform(27700, clone=True)
                 # g is an OGRGeometry polygon
-                # g.geos returns a GEOSGeometry polygon
-#                print 'type(g):', type(g)
-#                print 'type(g.geos):', type(g.geos)
-
-                # For save_polygons_or_multipolygons:
+                # g.geos returns a GEOSGeometry polygon, for
+                # save_polygons_or_multipolygons:
                 g = g.geos
 
                 # Check that the feature is still valid after transforming:
-#                print '    Geometry valid after transforming:', g.geos.valid
-#                if not g.geos.valid:
                 if not g.valid:
-#                    raise Exception, 'Invalid geometry found after transforming'
                     print '    Simplifying polygon'
-                    # Try to fix the polygon to make it valid, at least:
                     # This seems to create a new valid geometry (Polygon or
                     # MultiPolygon) covering pretty much the same areas as the
                     # original invalid one appears to. Many originally invalid
                     # polygons look as though they have just one misplaced point;
                     # this tends to create a new point at the self-intersection
-                    # and remove the extra area, if it is very small.
+                    # and remove the extra area, if it is very small. This isn't
+                    # a perfect fix, but it means that unionagg() can use all
+                    # neighbourhoods' polygons:
 
-                    # For save_polygons_or_multipolygons:
                     g = g.simplify(preserve_topology=False)
 
-#                    g = g.geos.simplify(preserve_topology=False)
-                    # g is now a GEOSGeometry polygon...
-#                    print 'type(g) after simplifying:', type(g)
-#                    print 'g.wkt:', g.wkt
-#                    print 'g.hasz:', g.hasz
-#                    print 'g.srid:', g.srid
-
-                    # ...but save_polygons expects an OGRGeometry polygon:
-#                    g = g.ogr
-#                    print 'type(g) back to OGR:', type(g)
-
-#                    if not g.geos.valid:
                     if not g.valid:
                         raise Exception, 'Geometry still invalid after simplifying'
 
-#                if g.geos.geom_type == 'MultiPolygon':
-#                    poly = g
-#                elif g.geos.geom_type == 'Polygon':
-#                    poly = [ g ]
-#                else:
-#                    raise Exception, "poly is neither a Polygon or a Multipolygon"
             else:
-                # Force area polygons are updated later from their children's
-                # polygons:
-#                poly = None
+                # Force area polygons are updated separately later with
+                # unionagg() on their children's polygons:
                 g = None
 
             if options['commit']:
                 m.save()
                 m.names.update_or_create({ 'type': name_type }, { 'name': name })
                 m.codes.update_or_create({ 'type': code_type }, { 'code': code })
-                # save_polygons({ m.id : (m, poly) })
-                # poly[:] = [] in save_polygons breaks on MultiPolygons
-                # ('TypeError: 'MultiPolygon' object does not support item
-                # assignment'), so just create Geometries here instead:
                 save_polygons_or_multipolygons(m, g)
 
 
@@ -233,7 +201,6 @@ class Command(BaseCommand):
                     # raise Exception, 'Invalid geometry found before transforming'
                     # tuple of (number of points, area):
                     tup = (geos_geometry.num_coords, m)
-#                    print 'invalid_before.append():', tup
                     invalid_before.append(tup)
                     # This uses the area id as the key, whereas
                     # invalid_polygons_dict uses the geometry id as the key.
@@ -255,8 +222,6 @@ class Command(BaseCommand):
         # The May 2012 KML dataset includes '.DS_Store' in the root directory,
         # making os.listdir(kml_path) one longer than it was before:
         if len(os.listdir(kml_path)) != len(os.listdir(names_path)):
-#            print 'len(os.listdir(kml_path)):', len(os.listdir(kml_path))
-#            print 'len(os.listdir(names_path)):', len(os.listdir(names_path))
             raise Exception, "The two datasets contain different numbers of forces!"
 
 
@@ -330,8 +295,6 @@ class Command(BaseCommand):
                 force_name, force_names_dict = names_dict[force_code]
             else:
                 raise Exception, "Name for force %s not found" % force_code
-                # print "Name for force %s not found, using code instead" % force_code
-                # force_name = force_code
             print "Importing police force %s" % force_name
 
             if force_code in welsh_forces:
@@ -366,7 +329,6 @@ class Command(BaseCommand):
                     neighbourhood_name = force_names_dict[neighbourhood_code]
                     name_missing = False
                 else:
-                    # raise Exception, "Name for %s in %s not found" % (neighbourhood_code, force_name)
                     print "Name for %s in %s not found, using neighbourhood_code instead" % (neighbourhood_code, force_name)
                     neighbourhood_name = neighbourhood_code
                     name_missing = True
@@ -421,8 +383,9 @@ class Command(BaseCommand):
             # Create a force area geometry from its neighbourhood children,
             # excluding invalid polygons:
             force_geometry = Geometry.objects.filter(area__parent_area_id=force.id).exclude(id__in=invalid_polygons_dict.keys()).unionagg()
-            # unionagg() fails on some forces despite all their children's
-            # polygons being valid: (gloucestershire, staffordshire etc)
+            # unionagg() fails on some forces in the May 2012 dataset despite
+            # all their children's polygons being valid: (gloucestershire,
+            # staffordshire, sussex, hampshire)
             # AttributeError: 'NoneType' object has no attribute 'valid'
             try:
                 print 'force_geometry.valid:', force_geometry.valid
@@ -431,9 +394,6 @@ class Command(BaseCommand):
                 force_unionagg_none_list.append(force_code)
                 print 'unionagg() is None for %s' % force_name
             if options['commit']:
-                # unionagg() gives us a nice polygon or multipolygon already, so
-                # we can just save it directly without having to go through
-                # save_polygons:
                 save_polygons_or_multipolygons(force, force_geometry)
             else:
                 print '(not trying to create force geometries as --commit not specified)'
