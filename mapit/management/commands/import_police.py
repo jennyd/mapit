@@ -451,7 +451,7 @@ class Command(BaseCommand):
         print '%d features invalid before transformation (see invalid_before.json)' % len(invalid_before)
 
         with open(os.path.join(save_path, 'invalid_before.json'), 'w') as f:
-            print 'Saving invalid_before.json'
+            print '  Saving invalid_before.json'
             json.dump(invalid_before_dict, f, indent=4)
 
         simplest = min(invalid_before)
@@ -465,26 +465,26 @@ class Command(BaseCommand):
         print "%d neighbourhood polygons are invalid and were excluded from their forces' polygons (see invalid_polygons.json)" % len(invalid_polygons_dict.keys())
 
         with open(os.path.join(save_path, 'invalid_polygons.json'), 'w') as f:
-            print 'Saving invalid_polygons.json'
+            print '  Saving invalid_polygons.json'
             json.dump(invalid_polygons_dict, f, indent=4)
 
 
         print 'Names were missing for %d neighbourhoods (see missing_names.json)' % len(missing_names_dict.keys())
 
         with open(os.path.join(save_path, 'missing_names.json'), 'w') as f:
-            print 'Saving missing_names.json'
+            print '  Saving missing_names.json'
             json.dump(missing_names_dict, f, indent=4)
 
         print '%d extra neighbourhood names were found (see extra_names.json)' % len(extra_names)
 
         with open(os.path.join(save_path, 'extra_names.json'), 'w') as f:
-            print 'Saving extra_names.json'
+            print '  Saving extra_names.json'
             json.dump(extra_names, f, indent=4)
 
         print 'Unionagg() failed for %d forces (see force_unionagg_none.json)' % len(force_unionagg_none_list)
 
         with open(os.path.join(save_path, 'force_unionagg_none.json'), 'w') as f:
-            print 'Saving force_unionagg_none.json'
+            print '  Saving force_unionagg_none.json'
             json.dump(force_unionagg_none_list, f, indent=4)
 
 
