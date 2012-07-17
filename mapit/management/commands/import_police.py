@@ -91,6 +91,8 @@ def create_two_d_polygon(area, polygon):
     This takes an area and a GEOSGeometry polygon, and creates and returns a
     Geometry instance with a two-dimensional polygon for an area.
     """
+    # FIXME Check if polygons really need to be 2D now - must_be_two_d isn't in
+    # save_polygons any more
     must_be_two_d = re.sub(r'([\d.-]+\s+[\d.-]+)(\s+[\d.-]+)(,|\)\))', r'\1\3', polygon.wkt)
     return area.polygons.create(polygon=must_be_two_d)
 
