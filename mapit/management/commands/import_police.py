@@ -55,10 +55,11 @@ def parse_police_names_json(names_path):
                 raise Exception, "Force id %s found twice in JSON" % force['id']
             names_dict[force['id']] = (force['name'], {})
 
-    # For finding the maximum code and name lengths, to avoid having to change
-    # fields again:
-    code_max_length = 0
-    name_max_length = 0
+    if options['debug_data']:
+        # For finding the maximum code and name lengths, to avoid having to change
+        # fields again:
+        code_max_length = 0
+        name_max_length = 0
 
     for force_id in names_dict.keys():
         with open(os.path.join(names_path, force_id+'_neighbourhoods.json')) as f:
@@ -66,8 +67,9 @@ def parse_police_names_json(names_path):
             neighbourhood_names = json.load(f)
             for neighbourhood in neighbourhood_names:
 
-                code_max_length = max(len(neighbourhood['id']), code_max_length)
-                name_max_length = max(len(neighbourhood['name']), name_max_length)
+                if options['debug_data']:
+                    code_max_length = max(len(neighbourhood['id']), code_max_length)
+                    name_max_length = max(len(neighbourhood['name']), name_max_length)
 
                 # As above, convert HTML entities:
                 neighbourhood['name'] = h.unescape(neighbourhood['name'])
@@ -75,9 +77,11 @@ def parse_police_names_json(names_path):
                     raise Exception, "Neighbourhood id %s found twice in force %s in JSON" % (neighbourhood['id'], force_id)
                 names_dict[force_id][1][neighbourhood['id']] = neighbourhood['name']
 
-    # print json.dumps(names_dict, indent=4)
-    print 'code_max_length:', code_max_length
-    print 'name_max_length:', name_max_length
+    if options['debug_data']:
+        # print json.dumps(names_dict, indent=4)
+        print 'code_max_length:', code_max_length
+        print 'name_max_length:', name_max_length
+
     return names_dict
 
 def get_valid_polygon(feat):
@@ -194,16 +198,15 @@ def update_or_create_area(code,
         if area_type == neighbourhood_area_type:
             save_polygons_or_multipolygons(m, g)
 
-
+    if options['debug_data']:
         # Keep track of neighbourhood geometries which were invalid before
         # transforming:
         if area_type == neighbourhood_area_type and valid_before == False:
-            # raise Exception, 'Invalid geometry found before transforming'
             # tuple of (number of points, area):
             tup = (num_coords, m)
             invalid_before.append(tup)
-            # This uses the area id as the key, whereas invalid_polygons_dict
-            # uses the geometry id as the key.
+            # invalid_before_dict uses the area id as the key, whereas
+            # invalid_polygons_dict uses the geometry id as the key.
             # This is probably confusing.
             invalid_before_dict[m.id] = (force_code, neighbourhood_code)
 
@@ -219,6 +222,12 @@ class Command(BaseCommand):
             action='store_true',
             dest='commit',
             help='Actually update the database'
+        ),
+        make_option(
+            '--debug_data',
+            action="store_true",
+            dest='debug_data',
+            help='Save useful info about problems in the datasets',
         ),
     )
 
@@ -240,7 +249,7 @@ class Command(BaseCommand):
 
         names_dict = parse_police_names_json(names_path)
 
-        # These are for both forces and neighbourhoods:
+        # These are needed for both forces and neighbourhoods:
         neighbourhood_area_type = Type.objects.get(code='PON')
         force_area_type = Type.objects.get(code='POF')
 
@@ -344,15 +353,20 @@ class Command(BaseCommand):
 
             for neighbourhood in os.listdir(force_directory):
                 neighbourhood_code = re.sub('\.kml$', '', neighbourhood)
-                # This is used to find any extra names later:
-                neighbourhood_kmls_codes_list.append(neighbourhood_code)
+
+                if options['debug_data']:
+                    # This is used to find any extra names later:
+                    neighbourhood_kmls_codes_list.append(neighbourhood_code)
+
                 if neighbourhood_code in force_names_dict:
                     neighbourhood_name = force_names_dict[neighbourhood_code]
-                    name_missing = False
+                    if options['debug_data']:
+                        name_missing = False
                 else:
                     print "Name for %s in %s not found, using neighbourhood_code instead" % (neighbourhood_code, force_name)
                     neighbourhood_name = neighbourhood_code
-                    name_missing = True
+                    if options['debug_data']:
+                        name_missing = True
                 print "  Importing neighbourhood %s (%s) from %s" % (neighbourhood_name, neighbourhood_code, force_name)
 
                 # Need to parse the KML manually to get the ExtendedData
@@ -382,28 +396,31 @@ class Command(BaseCommand):
                                           code_type=code_type,
                                           options=options)
 
-                if name_missing == True:
+                if options['debug_data'] and name_missing == True:
                     missing_names_dict[neighbourhood.id] = (force_code, neighbourhood_code)
 
                 # unionagg() fails when invalid polygons are included, so keep
                 # track of them to exclude later:
+                # (I think there shouldn't be any invalid polygons by now,
+                # but keep this in anyway for now.)
                 for geometry in neighbourhood.polygons.all():
                     if not geometry.polygon.valid:
-                        # This uses the geometry id as the key, whereas
-                        # invalid_before_dict uses the area id as the key. This
-                        # is probably confusing.
+                        # invalid_polygons_dict uses the geometry id as the key,
+                        # whereas invalid_before_dict uses the area id as the
+                        # key. This is probably confusing.
                         invalid_polygons_dict[geometry.id] = (force_code, neighbourhood_code)
                     else:
                         continue
 
-            # Keep track of any extra names without KML files for this force:
-            neighbourhood_kmls_codes_set = set(neighbourhood_kmls_codes_list)
-            neighbourhood_names_codes_set = set(force_names_dict.keys())
-            extra_codes_set = neighbourhood_names_codes_set - neighbourhood_kmls_codes_set
-            for neighbourhood_code in extra_codes_set:
-                extra_names.append({'force_code': force_code,
-                                    'neighbourhood_code': neighbourhood_code,
-                                    'neighbourhood_name': force_names_dict[neighbourhood_code]})
+            if options['debug_data']:
+                # Keep track of any extra names without KML files for this force:
+                neighbourhood_kmls_codes_set = set(neighbourhood_kmls_codes_list)
+                neighbourhood_names_codes_set = set(force_names_dict.keys())
+                extra_codes_set = neighbourhood_names_codes_set - neighbourhood_kmls_codes_set
+                for neighbourhood_code in extra_codes_set:
+                    extra_names.append({'force_code': force_code,
+                                        'neighbourhood_code': neighbourhood_code,
+                                        'neighbourhood_name': force_names_dict[neighbourhood_code]})
 
 
             # Create a force area geometry from its neighbourhood children,
@@ -423,6 +440,9 @@ class Command(BaseCommand):
             else:
                 print '(not trying to create force geometries as --commit not specified)'
 
+
+        if not options['debug_data']:
+            return
 
         # Finally, print and save helpful details about problems with the datasets:
 
