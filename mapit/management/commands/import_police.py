@@ -130,6 +130,8 @@ def add_new_two_d_polygon(area, polygon):
     This takes an Area and a GEOSGeometry polygon, and creates and returns a
     Geometry instance with a two-dimensional polygon for the area.
     """
+    # XXX This doesn't check options['commit'], but should obviously only be
+    # called when we do want to commit.
     # FIXME Check if polygons really need to be 2D now - must_be_two_d isn't in
     # save_polygons any more
     must_be_two_d = re.sub(r'([\d.-]+\s+[\d.-]+)(\s+[\d.-]+)(,|\)\))', r'\1\3', polygon.wkt)
@@ -142,6 +144,8 @@ def save_polygons_or_multipolygons(area, geometry):
     """
     # This is very similar to utils.save_polygons, but expects a GEOSGeometry
     # instead of an OGRGeometry.
+    # XXX This doesn't check options['commit'], but should obviously only be
+    # called when we do want to commit.
     if geometry.geom_type == 'MultiPolygon':
         shapes = geometry
     elif geometry.geom_type == 'Polygon':
@@ -399,18 +403,22 @@ class Command(BaseCommand):
                 if options['debug_data'] and name_missing == True:
                     missing_names_dict[neighbourhood.id] = (force_code, neighbourhood_code)
 
-                # unionagg() fails when invalid polygons are included, so keep
-                # track of them to exclude later:
-                # (I think there shouldn't be any invalid polygons by now,
-                # but keep this in anyway for now.)
-                for geometry in neighbourhood.polygons.all():
-                    if not geometry.polygon.valid:
-                        # invalid_polygons_dict uses the geometry id as the key,
-                        # whereas invalid_before_dict uses the area id as the
-                        # key. This is probably confusing.
-                        invalid_polygons_dict[geometry.id] = (force_code, neighbourhood_code)
-                    else:
-                        continue
+                # FIXME This only works when the polygons have been saved to
+                # the database. Make this just use a list of unsaved polygons
+                # instead?
+                if options['commit']:
+                    # unionagg() fails when invalid polygons are included, so keep
+                    # track of them to exclude later:
+                    # (I think there shouldn't be any invalid polygons by now,
+                    # but keep this in anyway for now.)
+                    for geometry in neighbourhood.polygons.all():
+                        if not geometry.polygon.valid:
+                            # invalid_polygons_dict uses the geometry id as the key,
+                            # whereas invalid_before_dict uses the area id as the
+                            # key. This is probably confusing.
+                            invalid_polygons_dict[geometry.id] = (force_code, neighbourhood_code)
+                        else:
+                            continue
 
             if options['debug_data']:
                 # Keep track of any extra names without KML files for this force:
@@ -423,19 +431,21 @@ class Command(BaseCommand):
                                         'neighbourhood_name': force_names_dict[neighbourhood_code]})
 
 
-            # Create a force area geometry from its neighbourhood children,
-            # excluding any polygons which are still invalid:
-            force_geometry = Geometry.objects.filter(area__parent_area_id=force.id).exclude(id__in=invalid_polygons_dict.keys()).unionagg()
-            # unionagg() fails on some forces in the May 2012 dataset despite
-            # all their children's polygons being valid (gloucestershire,
-            # staffordshire, sussex, hampshire); it returns None for these.
-            try:
-                print 'force_geometry.valid:', force_geometry.valid
-                print 'force_geometry.geom_type', force_geometry.geom_type
-            except AttributeError:
-                force_unionagg_none_list.append(force_code)
-                print 'unionagg() is None for %s' % force_name
+            # unionagg() is a GeoQueryset method, so can't be used if the
+            # polygons haven't been saved to the database:
             if options['commit']:
+                # Create a force area geometry from its neighbourhood children,
+                # excluding any polygons which are still invalid:
+                force_geometry = Geometry.objects.filter(area__parent_area_id=force.id).exclude(id__in=invalid_polygons_dict.keys()).unionagg()
+                # unionagg() fails on some forces in the May 2012 dataset despite
+                # all their children's polygons being valid (gloucestershire,
+                # staffordshire, sussex, hampshire); it returns None for these.
+                try:
+                    print 'force_geometry.valid:', force_geometry.valid
+                    print 'force_geometry.geom_type', force_geometry.geom_type
+                except AttributeError:
+                    force_unionagg_none_list.append(force_code)
+                    print 'unionagg() is None for %s' % force_name
                 save_polygons_or_multipolygons(force, force_geometry)
             else:
                 print '(not trying to create force geometries as --commit not specified)'
