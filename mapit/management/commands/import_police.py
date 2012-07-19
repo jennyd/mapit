@@ -211,9 +211,8 @@ def update_or_create_area(code,
 
 
 class Command(BaseCommand):
-    help = 'Import KML data'
-    args = '<Police neighbourhood KMLs, and Police API names JSON directories'
-    # Should this have a --commit option? Not all other import scripts have it
+    help = 'Import police forces and neighbourhoods from KML files and names data from the police API'
+    args = '<kml_path names_path>'
     option_list = BaseCommand.option_list + (
         make_option(
             '--commit',
