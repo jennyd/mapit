@@ -16,7 +16,7 @@ from django.contrib.gis.gdal import *
 from mapit.models import Area, Geometry, Generation, Country, Type, CodeType, NameType
 
 
-def parse_police_names_json(names_path):
+def parse_police_names_json(names_path, options):
     """
     This parses the force and neighbourhood names from the API JSON files, and
     returns a dict like this:
@@ -247,7 +247,7 @@ class Command(BaseCommand):
         if len(kml_forces_list) + 1 != len(os.listdir(names_path)):
             raise Exception, "The two datasets contain different numbers of forces!"
 
-        names_dict = parse_police_names_json(names_path)
+        names_dict = parse_police_names_json(names_path, options)
 
         # These are needed for both forces and neighbourhoods:
         neighbourhood_area_type = Type.objects.get(code='PON')
