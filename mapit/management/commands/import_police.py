@@ -2,18 +2,128 @@
 # forces in England and Wales into MaPit. It takes KML data from
 # http://www.police.uk/data and JSON data from the Police API (which is fetched by get-police-names.py), so you need those first.
 
+import datetime
 import HTMLParser
 import json
 import os
 import re
 import xml.sax
+
 from xml.sax.handler import ContentHandler
 from optparse import make_option
+
 from django.core.management.base import BaseCommand
 # Not using LayerMapping as want more control, but what it does is what this does
 #from django.contrib.gis.utils import LayerMapping
 from django.contrib.gis.gdal import *
+
 from mapit.models import Area, Geometry, Generation, Country, Type, CodeType, NameType
+
+
+class PoliceLogger(object):
+    def __init__(self):
+        self.code_max_length = 0
+        self.name_max_length = 0
+        self.invalid_before = []
+        self.invalid_before_dict = {}
+        self.invalid_polygons = {}
+        self.missing_names = []
+        self.extra_names = []
+        self.force_geometry_creation_attempts = []
+
+    def log_code_and_name_max_lengths(self, code, name):
+        '''Find the maximum lengths of values to be saved in Code.code and
+        Name.name, since this dataset has some very long ones which may require
+        the fields' max_length to be increased again.
+        '''
+        self.code_max_length = max(len(code), self.code_max_length)
+        self.name_max_length = max(len(name), self.name_max_length)
+
+    def print_code_and_name_max_lengths(self):
+        print 'Maximum length required for Code.code:', self.code_max_length
+        print 'Maximum length required for Name.name:', self.name_max_length
+
+    def log_invalid_polygon_before_transformation(self, num_coords, area, force_code, neighbourhood_code):
+        '''Store details of a neighbourhood polygon which is invalid when it is
+        extracted from the KML file.
+        '''
+        # invalid_before is sorted by num_coords in
+        # self.print_and_save_logged_data to find the simplest initially invalid
+        # polygon for testing purposes.
+        self.invalid_before.append((num_coords, area))
+        # FIXME This requires the area to be saved and have an id:
+        # invalid_before_dict uses the area id as the key, whereas
+        # invalid_polygons_dict uses the geometry id as the key.
+        # This is probably confusing.
+        self.invalid_before_dict[area.id] = (force_code, neighbourhood_code)
+
+    def log_invalid_polygon_to_exclude(self, geometry.id, force_code, neighbourhood_code):
+        '''Store details of a neighbourhood polygon which is still invalid after
+        transformation and simplification, and therefore needs to be excluded
+        from the queryset to be aggregated for the force geometry.
+        '''
+        # This requires the geometry to be saved and have an id, which is
+        # reasonable at the moment since it is used to filter a queryset:
+        invalid_polygons[geometry.id] = (force_code, neighbourhood_code)
+
+    def log_missing_name(self, force_code, neighbourhood_code):
+        '''Store details of a neighbourhood for which there is no name in the
+        API dataset. This is called once per neighbourhood.
+        '''
+         self.missing_names.append((force_code, neighbourhood_code))
+
+    def log_extra_names(self, force_code, neighbourhood_kmls_codes_list, force_names_dict):
+        '''Store extra neighbourhood names from the API dataset whose codes do
+        not match any in the KMLs dataset. This is called once per force.
+        '''
+        neighbourhood_kmls_codes_set = set(neighbourhood_kmls_codes_list)
+        neighbourhood_names_codes_set = set(force_names_dict.keys())
+        extra_codes_set = neighbourhood_names_codes_set - neighbourhood_kmls_codes_set
+        for neighbourhood_code in extra_codes_set:
+            self.extra_names.append({'force_code': force_code,
+                                'neighbourhood_code': neighbourhood_code,
+                                'neighbourhood_name': force_names_dict[neighbourhood_code]})
+
+    def log_force_geometry_creation_attempt(self, force_code, method, successful, valid_reason):
+        '''Store a force code, the aggregation method attempted, whether it
+        was successful, and, if a geometry was created but was invalid, the
+        reason for it being invalid.
+        '''
+        force_geometry_creation_attempts.append((force_code, method, successful, valid_reason))
+
+    def save_data_to_json(self, save_path, basename, data):
+        with open(os.path.join(save_path, basename+'.json'), 'w') as f:
+            print '  Saving %s.json' % basename
+            json.dump(data, f, indent=4)
+
+    def print_and_save_logged_data(self, save_path):
+        self.print_code_and_name_max_lengths()
+
+        # FIXME This requires geometries and areas to be saved and have ids
+        simplest = min(self.invalid_before)
+        print 'Simplest polygon which was invalid before transformation:'
+        print '  geometry.id:', simplest[1].id
+        print '  parent area:', simplest[1].parent_area
+        print '  neighbourhood codes:', simplest[1].codes.all()
+        print '  number of points:', simplest[0]
+
+        print '%d features invalid before transformation (see invalid_before.json)' % len(self.invalid_before)
+        self.save_data_to_json(save_path, 'invalid_before', self.invalid_before_dict)
+
+        print "%d neighbourhood polygons are invalid and were excluded from their forces' polygons (see invalid_polygons.json)" % len(self.invalid_polygons_dict.keys())
+        self.save_data_to_json(save_path, 'invalid_polygons', self.invalid_polygons_dict)
+
+        print 'Names were missing for %d neighbourhoods (see missing_names.json)' % len(self.missing_names_dict.keys())
+        self.save_data_to_json(save_path, 'missing_names', self.missing_names_dict)
+
+        print '%d extra neighbourhood names were found (see extra_names.json)' % len(self.extra_names)
+        self.save_data_to_json(save_path, 'extra_names', self.extra_names)
+
+        print 'Geometry aggregation failed for %d forces (see force_geometry_none.json)' % len(self.force_geometry_none_list)
+        self.save_data_to_json(save_path, 'force_geometry_none', self.force_geometry_none_list)
+
+
+logger = PoliceLogger()
 
 
 def parse_police_names_json(names_path, options):
@@ -54,33 +164,26 @@ def parse_police_names_json(names_path, options):
             if force['id'] in names_dict:
                 raise Exception, "Force id %s found twice in JSON" % force['id']
             names_dict[force['id']] = (force['name'], {})
-
-    if options['debug_data']:
-        # For finding the maximum code and name lengths, to avoid having to change
-        # fields again:
-        code_max_length = 0
-        name_max_length = 0
+            if options['debug_data']:
+                logger.log_code_and_name_max_lengths(force['id'],
+                                                     force['name'])
 
     for force_id in names_dict.keys():
         with open(os.path.join(names_path, force_id+'_neighbourhoods.json')) as f:
             print 'Parsing neighbourhood names in', force_id
             neighbourhood_names = json.load(f)
             for neighbourhood in neighbourhood_names:
-
-                if options['debug_data']:
-                    code_max_length = max(len(neighbourhood['id']), code_max_length)
-                    name_max_length = max(len(neighbourhood['name']), name_max_length)
-
                 # As above, convert HTML entities:
                 neighbourhood['name'] = h.unescape(neighbourhood['name'])
                 if neighbourhood['id'] in names_dict[force_id][1]:
                     raise Exception, "Neighbourhood id %s found twice in force %s in JSON" % (neighbourhood['id'], force_id)
                 names_dict[force_id][1][neighbourhood['id']] = neighbourhood['name']
+                if options['debug_data']:
+                    logger.log_code_and_name_max_lengths(neighbourhood['id'],
+                                                         neighbourhood['name'])
 
     if options['debug_data']:
-        # print json.dumps(names_dict, indent=4)
-        print 'code_max_length:', code_max_length
-        print 'name_max_length:', name_max_length
+        logger.print_code_and_name_max_lengths()
 
     return names_dict
 
@@ -202,17 +305,12 @@ def update_or_create_area(code,
         if area_type == neighbourhood_area_type:
             save_polygons_or_multipolygons(m, g)
 
-    if options['debug_data']:
-        # Keep track of neighbourhood geometries which were invalid before
-        # transforming:
-        if area_type == neighbourhood_area_type and valid_before == False:
-            # tuple of (number of points, area):
-            tup = (num_coords, m)
-            invalid_before.append(tup)
-            # invalid_before_dict uses the area id as the key, whereas
-            # invalid_polygons_dict uses the geometry id as the key.
-            # This is probably confusing.
-            invalid_before_dict[m.id] = (force_code, neighbourhood_code)
+        # This currently requires an area id, so can only work for new areas
+        # when using the commit option. FIXME change how these are stored
+        if options['debug_data'] and area_type == neighbourhood_area_type and valid_before == False:
+            # Keep track of neighbourhood geometries which were invalid before
+            # transforming:
+            logger.log_invalid_polygon_before_transformation(num_coords, m, force_code, neighbourhood_code)
 
     return m
 
@@ -267,59 +365,6 @@ class Command(BaseCommand):
         # (assuming that forces don't cross the border...)
         welsh_forces = ('dyfed-powys', 'gwent', 'north-wales', 'south-wales')
 
-
-        # The following lists and dictionaries are only used for data debugging.
-
-        # invalid_before and invalid_before_dict store features which are
-        # invalid before transformation (directly
-        # from the KML files). These will also be in invalid_polygons_dict,
-        # since they will still be invalid when the polygons are created:
-
-        # invalid_before stores tuples of (number of points, area object), to be sorted
-        # to find the simplest one to try to fix:
-        invalid_before = []
-        # Example usage:
-        #   tup = (num_coords, m)
-        #   invalid_before.append(tup)
-
-        # invalid_before_dict stores ids of neighbourhoods with polygons which were invalid
-        # before transformation, with their force and neighbourhood codes, to
-        # serialize to JSON and save at the end:
-        invalid_before_dict = {}
-        # Example usage:
-        #   invalid_before_dict[m.id] = (force_code, neighbourhood_code)
-
-        # (invalid_before_dict uses the area id as the key, whereas
-        # invalid_polygons_dict uses the geometry id as the key.
-        # This is probably confusing, and should be fixed.)
-
-        # invalid_polygons_dict stores the geometry ids, and force and neighbourhood codes, of
-        # any invalid neighbourhood polygons, which would cause the creation of
-        # their force polygons via unionagg() to fail.
-        invalid_polygons_dict = {}
-        # Example usage:
-        #   invalid_polygons_dict[geometry.id] = (force_code, neighbourhood_code)
-
-        # missing_names_dict stores ids of neighbourhoods, and their force and neighbourhood
-        # codes, with missing names, to serialize to JSON and save at the end:
-        missing_names_dict = {}
-        # Example usage:
-        #   missing_names_dict[neighbourhood.id] = (force_code, neighbourhood_code)
-
-        # extra_names stores neighbourhood and force codes from the name files which
-        # have no matching kmls, to serialize to JSON and save at the end:
-        extra_names = []
-        # Example usage:
-        #   extra_names.append({'force_code': force_code,
-        #                       'neighbourhood_code': neighbourhood_code})
-
-        # force_unionagg_none_list stores codes of forces on which unionagg() fails, to serialize
-        # to JSON and save at the end:
-        force_unionagg_none_list = []
-        # Example usage:
-        #   force_unionagg_none_list.append(force_code)
-
-
         for force_code in kml_forces_list:
 
             if force_code in names_dict:
@@ -359,19 +404,18 @@ class Command(BaseCommand):
                 neighbourhood_code = re.sub('\.kml$', '', neighbourhood)
 
                 if options['debug_data']:
-                    # This is used to find any extra names later:
+                    # This is passed to logger.log_extra_names later:
                     neighbourhood_kmls_codes_list.append(neighbourhood_code)
 
                 if neighbourhood_code in force_names_dict:
                     neighbourhood_name = force_names_dict[neighbourhood_code]
-                    if options['debug_data']:
-                        name_missing = False
                 else:
                     print "Name for %s in %s not found, using neighbourhood_code instead" % (neighbourhood_code, force_name)
                     neighbourhood_name = neighbourhood_code
                     if options['debug_data']:
-                        name_missing = True
+                        logger.log_missing_name(force_code, neighbourhood_code)
                 print "  Importing neighbourhood %s (%s) from %s" % (neighbourhood_name, neighbourhood_code, force_name)
+
 
                 # Need to parse the KML manually to get the ExtendedData
                 kml_data = KML()
@@ -400,39 +444,26 @@ class Command(BaseCommand):
                                           code_type=code_type,
                                           options=options)
 
-                if options['debug_data'] and name_missing == True:
-                    missing_names_dict[neighbourhood.id] = (force_code, neighbourhood_code)
-
-                # FIXME This only works when the polygons have been saved to
-                # the database. Make this just use a list of unsaved polygons
-                # instead?
                 if options['commit']:
+                    # FIXME Getting these polygons only works when they have
+                    # been saved to the database. Make this just use a list of
+                    # unsaved polygons instead?
+
                     # unionagg() fails when invalid polygons are included, so keep
                     # track of them to exclude later:
                     # (I think there shouldn't be any invalid polygons by now,
                     # but keep this in anyway for now.)
                     for geometry in neighbourhood.polygons.all():
                         if not geometry.polygon.valid:
-                            # invalid_polygons_dict uses the geometry id as the key,
-                            # whereas invalid_before_dict uses the area id as the
-                            # key. This is probably confusing.
-                            invalid_polygons_dict[geometry.id] = (force_code, neighbourhood_code)
+                            log_invalid_polygon_to_exclude(geometry.id, force_code, neighbourhood_code):
                         else:
                             continue
 
             if options['debug_data']:
-                # Keep track of any extra names without KML files for this force:
-                neighbourhood_kmls_codes_set = set(neighbourhood_kmls_codes_list)
-                neighbourhood_names_codes_set = set(force_names_dict.keys())
-                extra_codes_set = neighbourhood_names_codes_set - neighbourhood_kmls_codes_set
-                for neighbourhood_code in extra_codes_set:
-                    extra_names.append({'force_code': force_code,
-                                        'neighbourhood_code': neighbourhood_code,
-                                        'neighbourhood_name': force_names_dict[neighbourhood_code]})
+                logger.log_extra_names(force_code, neighbourhood_kmls_codes_list, force_names_dict)
 
-
-            # unionagg() is a GeoQueryset method, so can't be used if the
-            # polygons haven't been saved to the database:
+            # unionagg() and collect() are GeoQueryset methods, so can't be used
+            # if the polygons haven't been saved to the database:
             if options['commit']:
                 # Create a force area geometry from its neighbourhood children,
                 # excluding any polygons which are still invalid:
@@ -459,6 +490,8 @@ class Command(BaseCommand):
                         print '    %s() for %s returns None' % (method, force_name)
                         valid = False
                         valid_reason = 'Geometry is None'
+                    if options['debug_data']:
+                        logger.log_force_geometry_creation_attempt(force_code, method, valid, valid_reason)
                     if valid == True:
                         # Now we have a valid geometry to save:
                         break
@@ -467,56 +500,18 @@ class Command(BaseCommand):
                 print '(not trying to create force geometries as --commit not specified)'
 
 
-        if not options['debug_data']:
-            return
+        if options['debug_data']:
+            # Finally, print and save the logged data about problems with the
+            # datasets:
+            date_string = datetime.date.today().isoformat()
+            save_path = '../data/Police-data-problems_'+date_string+'/'
+            if not os.access(save_path, os.F_OK):
+                os.mkdir(save_path)
 
-        # Finally, print and save helpful details about problems with the datasets:
-
-        save_path = '../data/Police-data-problems/'
-        if not os.access(save_path, os.F_OK):
-            os.mkdir(save_path)
-
-        print ''
-        print '----------------------------------------'
-        print ''
-        print '%d features invalid before transformation (see invalid_before.json)' % len(invalid_before)
-
-        with open(os.path.join(save_path, 'invalid_before.json'), 'w') as f:
-            print '  Saving invalid_before.json'
-            json.dump(invalid_before_dict, f, indent=4)
-
-        simplest = min(invalid_before)
-        print 'Simplest polygon which was invalid before transformation:'
-        print '  geometry.id:', simplest[1].id
-        print '  parent area:', simplest[1].parent_area
-        print '  neighbourhood codes:', simplest[1].codes.all()
-        print '  number of points:', simplest[0]
-
-
-        print "%d neighbourhood polygons are invalid and were excluded from their forces' polygons (see invalid_polygons.json)" % len(invalid_polygons_dict.keys())
-
-        with open(os.path.join(save_path, 'invalid_polygons.json'), 'w') as f:
-            print '  Saving invalid_polygons.json'
-            json.dump(invalid_polygons_dict, f, indent=4)
-
-
-        print 'Names were missing for %d neighbourhoods (see missing_names.json)' % len(missing_names_dict.keys())
-
-        with open(os.path.join(save_path, 'missing_names.json'), 'w') as f:
-            print '  Saving missing_names.json'
-            json.dump(missing_names_dict, f, indent=4)
-
-        print '%d extra neighbourhood names were found (see extra_names.json)' % len(extra_names)
-
-        with open(os.path.join(save_path, 'extra_names.json'), 'w') as f:
-            print '  Saving extra_names.json'
-            json.dump(extra_names, f, indent=4)
-
-        print 'Unionagg() failed for %d forces (see force_unionagg_none.json)' % len(force_unionagg_none_list)
-
-        with open(os.path.join(save_path, 'force_unionagg_none.json'), 'w') as f:
-            print '  Saving force_unionagg_none.json'
-            json.dump(force_unionagg_none_list, f, indent=4)
+            print ''
+            print '----------------------------------------'
+            print ''
+            logger.print_and_save_logged_data(save_path)
 
 
 class KML(ContentHandler):
