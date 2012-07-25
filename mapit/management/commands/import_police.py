@@ -436,16 +436,32 @@ class Command(BaseCommand):
             if options['commit']:
                 # Create a force area geometry from its neighbourhood children,
                 # excluding any polygons which are still invalid:
-                force_geometry = Geometry.objects.filter(area__parent_area_id=force.id).exclude(id__in=invalid_polygons_dict.keys()).unionagg()
+                valid_polys = Geometry.objects.filter(area__parent_area_id=force.id).exclude(id__in=invalid_polygons_dict.keys())
+                print 'Trying to create a force geometry for %s' % force_code
                 # unionagg() fails on some forces in the May 2012 dataset despite
                 # all their children's polygons being valid (gloucestershire,
                 # staffordshire, sussex, hampshire); it returns None for these.
-                try:
-                    print 'force_geometry.valid:', force_geometry.valid
-                    print 'force_geometry.geom_type', force_geometry.geom_type
-                except AttributeError:
-                    force_unionagg_none_list.append(force_code)
-                    print 'unionagg() is None for %s' % force_name
+                agg_methods = ('unionagg', 'simplified collect')
+                for method in agg_methods:
+                    try:
+                        if method == 'unionagg':
+                            print '  Trying unionagg()...'
+                            force_geometry = valid_polys.unionagg()
+                        elif method == 'simplified collect':
+                            print '  Trying collect().simplify()...'
+                            force_geometry = valid_polys.collect().simplify()
+                        else:
+                             raise Exception, "Unknown method: %s" % method
+                        valid = force_geometry.valid
+                        print '    force_geometry.valid:', valid
+                        valid_reason = force_geometry.valid_reason
+                    except AttributeError:
+                        print '    %s() for %s returns None' % (method, force_name)
+                        valid = False
+                        valid_reason = 'Geometry is None'
+                    if valid == True:
+                        # Now we have a valid geometry to save:
+                        break
                 save_polygons_or_multipolygons(force, force_geometry)
             else:
                 print '(not trying to create force geometries as --commit not specified)'
