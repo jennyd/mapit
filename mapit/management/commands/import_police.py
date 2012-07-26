@@ -16,6 +16,7 @@ from django.core.management.base import BaseCommand
 # Not using LayerMapping as want more control, but what it does is what this does
 #from django.contrib.gis.utils import LayerMapping
 from django.contrib.gis.gdal import *
+from django.contrib.gis.geos import Polygon
 
 from mapit.models import Area, Geometry, Generation, Country, Type, CodeType, NameType
 
@@ -187,6 +188,29 @@ def parse_police_names_json(names_path, options):
 
     return names_dict
 
+def too_tiny(linear_ring):
+    '''
+    Takes a linear ring, simplifies it as area.html does when displaying an area
+    on a map, and returns True if it is too small to be displayed and False
+    otherwise.
+    '''
+    # This must be the same tolerance as area.html uses for displaying maps:
+    tolerance = 0.0001
+    simplified_ring = linear_ring.simplify(tolerance=tolerance)
+    if simplified_ring.empty:
+        return True
+    return False
+
+def get_displayable_polygon(polygon):
+    '''
+    Return a new polygon, excluding any interior rings in the original polygon
+    which are too small to be displayed on the map.
+    '''
+    if too_tiny(polygon[0]):
+        raise Exception, 'Outer boundary of polygon is too small to be displayed'
+    rings = [ring.coords for rings in polygon if not too_tiny(ring)]
+    return Polygon(*rings)
+
 def get_valid_polygon(feat):
     """
     This takes a GDAL feature, checks whether the geometry it contains is valid,
@@ -297,6 +321,7 @@ def update_or_create_area(code,
     # their children's polygons:
     if area_type == neighbourhood_area_type:
         g, valid_before, num_coords = get_valid_polygon(feat)
+        g = get_displayable_polygon(g)
 
     if options['commit']:
         m.save()
