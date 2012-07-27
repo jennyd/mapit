@@ -56,7 +56,7 @@ class PoliceLogger(object):
         '''
         # This requires the geometry to be saved and have an id, which is
         # reasonable at the moment since it is used to filter a queryset:
-        invalid_polygons[geometry.id] = (force_code, neighbourhood_code)
+        self.invalid_polygons[geometry.id] = (force_code, neighbourhood_code)
 
     def log_missing_name(self, force_code, neighbourhood_code):
         '''Store details of a neighbourhood for which there is no name in the
@@ -102,17 +102,17 @@ class PoliceLogger(object):
         print '%d features invalid before transformation (see invalid_before.json)' % len(self.invalid_before)
         self.save_data_to_json(save_path, 'invalid_before', self.invalid_before)
 
-        print "%d neighbourhood polygons are invalid and were excluded from their forces' polygons (see invalid_polygons.json)" % len(self.invalid_polygons_dict.keys())
-        self.save_data_to_json(save_path, 'invalid_polygons', self.invalid_polygons_dict)
+        print "%d neighbourhood polygons are invalid and were excluded from their forces' polygons (see invalid_polygons.json)" % len(self.invalid_polygons.keys())
+        self.save_data_to_json(save_path, 'invalid_polygons', self.invalid_polygons)
 
-        print 'Names were missing for %d neighbourhoods (see missing_names.json)' % len(self.missing_names_dict.keys())
-        self.save_data_to_json(save_path, 'missing_names', self.missing_names_dict)
+        print 'Names were missing for %d neighbourhoods (see missing_names.json)' % len(self.missing_names.keys())
+        self.save_data_to_json(save_path, 'missing_names', self.missing_names)
 
         print '%d extra neighbourhood names were found (see extra_names.json)' % len(self.extra_names)
         self.save_data_to_json(save_path, 'extra_names', self.extra_names)
 
-        print 'Geometry aggregation failed for %d forces (see force_geometry_none.json)' % len(self.force_geometry_none_list)
-        self.save_data_to_json(save_path, 'force_geometry_none', self.force_geometry_none_list)
+        print 'A total of %d attempts were made to create force geometries (see force_geometry_creation_attempts.json)' % len(self.force_geometry_creation_attempts)
+        self.save_data_to_json(save_path, 'force_geometry_creation_attempts', self.force_geometry_creation_attempts)
 
 
 logger = PoliceLogger()
