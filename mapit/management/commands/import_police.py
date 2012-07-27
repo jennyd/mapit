@@ -75,7 +75,8 @@ class PoliceLogger(object):
         for neighbourhood_code in extra_codes_set:
             self.extra_names.append((force_code,
                                      neighbourhood_code,
-                                     force_names_dict[neighbourhood_code])) # name
+                                     # neighbourhood name:
+                                     force_names_dict[neighbourhood_code]))
 
     def log_force_geometry_creation_attempt(self, force_code, method, successful, valid_reason):
         '''Store a force code, the aggregation method attempted, whether it
