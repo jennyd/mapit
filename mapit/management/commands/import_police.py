@@ -354,7 +354,7 @@ class Command(BaseCommand):
             '--debug_data',
             action="store_true",
             dest='debug_data',
-            help='Save useful info about problems in the datasets',
+            help='Save useful info about problems with the datasets',
         ),
     )
 
