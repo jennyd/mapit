@@ -26,7 +26,6 @@ class PoliceLogger(object):
         self.code_max_length = 0
         self.name_max_length = 0
         self.invalid_before = []
-        self.invalid_before_dict = {}
         self.invalid_polygons = {}
         self.missing_names = []
         self.extra_names = []
@@ -44,19 +43,11 @@ class PoliceLogger(object):
         print 'Maximum length required for Code.code:', self.code_max_length
         print 'Maximum length required for Name.name:', self.name_max_length
 
-    def log_invalid_polygon_before_transformation(self, num_coords, area, force_code, neighbourhood_code):
+    def log_invalid_polygon_before_transformation(self, num_coords, force_code, neighbourhood_code):
         '''Store details of a neighbourhood polygon which is invalid when it is
         extracted from the KML file.
         '''
-        # invalid_before is sorted by num_coords in
-        # self.print_and_save_logged_data to find the simplest initially invalid
-        # polygon for testing purposes.
-        self.invalid_before.append((num_coords, area))
-        # FIXME This requires the area to be saved and have an id:
-        # invalid_before_dict uses the area id as the key, whereas
-        # invalid_polygons_dict uses the geometry id as the key.
-        # This is probably confusing.
-        self.invalid_before_dict[area.id] = (force_code, neighbourhood_code)
+        self.invalid_before.append((num_coords, force_code, neighbourhood_code))
 
     def log_invalid_polygon_to_exclude(self, geometry_id, force_code, neighbourhood_code):
         '''Store details of a neighbourhood polygon which is still invalid after
@@ -100,16 +91,16 @@ class PoliceLogger(object):
     def print_and_save_logged_data(self, save_path):
         self.print_code_and_name_max_lengths()
 
-        # FIXME This requires geometries and areas to be saved and have ids
+        # Sort invalid_before by num_coords to find the simplest initially
+        # invalid polygon for testing purposes.
         simplest = min(self.invalid_before)
         print 'Simplest polygon which was invalid before transformation:'
-        print '  geometry.id:', simplest[1].id
-        print '  parent area:', simplest[1].parent_area
-        print '  neighbourhood codes:', simplest[1].codes.all()
+        print '  force code:', simplest[1]
+        print '  neighbourhood code:', simplest[2]
         print '  number of points:', simplest[0]
 
         print '%d features invalid before transformation (see invalid_before.json)' % len(self.invalid_before)
-        self.save_data_to_json(save_path, 'invalid_before', self.invalid_before_dict)
+        self.save_data_to_json(save_path, 'invalid_before', self.invalid_before)
 
         print "%d neighbourhood polygons are invalid and were excluded from their forces' polygons (see invalid_polygons.json)" % len(self.invalid_polygons_dict.keys())
         self.save_data_to_json(save_path, 'invalid_polygons', self.invalid_polygons_dict)
@@ -323,19 +314,17 @@ def update_or_create_area(code,
         g, valid_before, num_coords = get_valid_polygon(feat)
         g = get_displayable_polygon(g)
 
+    if options['debug_data'] and area_type == neighbourhood_area_type and valid_before == False:
+        # Keep track of neighbourhood geometries which were invalid before
+        # transforming:
+        logger.log_invalid_polygon_before_transformation(num_coords, force_code, neighbourhood_code)
+
     if options['commit']:
         m.save()
         m.names.update_or_create({ 'type': name_type }, { 'name': name })
         m.codes.update_or_create({ 'type': code_type }, { 'code': code })
         if area_type == neighbourhood_area_type:
             save_polygons_or_multipolygons(m, g)
-
-        # This currently requires an area id, so can only work for new areas
-        # when using the commit option. FIXME change how these are stored
-        if options['debug_data'] and area_type == neighbourhood_area_type and valid_before == False:
-            # Keep track of neighbourhood geometries which were invalid before
-            # transforming:
-            logger.log_invalid_polygon_before_transformation(num_coords, m, force_code, neighbourhood_code)
 
     return m
 
