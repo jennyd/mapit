@@ -58,7 +58,7 @@ class PoliceLogger(object):
         # This is probably confusing.
         self.invalid_before_dict[area.id] = (force_code, neighbourhood_code)
 
-    def log_invalid_polygon_to_exclude(self, geometry.id, force_code, neighbourhood_code):
+    def log_invalid_polygon_to_exclude(self, geometry_id, force_code, neighbourhood_code):
         '''Store details of a neighbourhood polygon which is still invalid after
         transformation and simplification, and therefore needs to be excluded
         from the queryset to be aggregated for the force geometry.
@@ -71,7 +71,7 @@ class PoliceLogger(object):
         '''Store details of a neighbourhood for which there is no name in the
         API dataset. This is called once per neighbourhood.
         '''
-         self.missing_names.append((force_code, neighbourhood_code))
+        self.missing_names.append((force_code, neighbourhood_code))
 
     def log_extra_names(self, force_code, neighbourhood_kmls_codes_list, force_names_dict):
         '''Store extra neighbourhood names from the API dataset whose codes do
@@ -480,7 +480,7 @@ class Command(BaseCommand):
                     # but keep this in anyway for now.)
                     for geometry in neighbourhood.polygons.all():
                         if not geometry.polygon.valid:
-                            log_invalid_polygon_to_exclude(geometry.id, force_code, neighbourhood_code):
+                            log_invalid_polygon_to_exclude(geometry.id, force_code, neighbourhood_code)
                         else:
                             continue
 
