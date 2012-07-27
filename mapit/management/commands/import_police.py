@@ -94,9 +94,9 @@ class PoliceLogger(object):
         self.print_code_and_name_max_lengths()
 
         # Sort invalid_before by num_coords to find the simplest initially
-        # invalid polygon for testing purposes.
+        # invalid polygon for testing purposes:
         simplest = min(self.invalid_before)
-        print 'Simplest polygon which was invalid before transformation:'
+        print 'Simplest polygon which was invalid straight after loading it from the KML:'
         print '  force code:', simplest[1]
         print '  neighbourhood code:', simplest[2]
         print '  number of points:', simplest[0]
