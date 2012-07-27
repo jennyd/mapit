@@ -101,20 +101,26 @@ class PoliceLogger(object):
         print '  neighbourhood code:', simplest[2]
         print '  number of points:', simplest[0]
 
-        print '%d features invalid before transformation (see invalid_before.json)' % len(self.invalid_before)
-        self.save_data_to_json(save_path, 'invalid_before', self.invalid_before)
+        data_to_process = (
+            {'basename': 'invalid_before',
+             'message': '%d features invalid before transformation' % len(self.invalid_before)},
+            {'basename': 'invalid_polygons',
+             'message': "%d neighbourhood polygons are invalid and were excluded from their forces' polygons" % len(self.invalid_polygons.keys()},
+            {'basename': 'missing_names',
+             'message': 'Names were missing for %d neighbourhoods' % len(self.missing_names)},
+            {'basename': 'extra_names',
+             'message': '%d extra neighbourhood names were found' % len(self.extra_names)},
+            {'basename': 'force_geometry_creation_attempts',
+             'message': 'A total of %d attempts were made to create force geometries' % len(self.force_geometry_creation_attempts)}
+        )
 
-        print "%d neighbourhood polygons are invalid and were excluded from their forces' polygons (see invalid_polygons.json)" % len(self.invalid_polygons.keys())
-        self.save_data_to_json(save_path, 'invalid_polygons', self.invalid_polygons)
-
-        print 'Names were missing for %d neighbourhoods (see missing_names.json)' % len(self.missing_names.keys())
-        self.save_data_to_json(save_path, 'missing_names', self.missing_names)
-
-        print '%d extra neighbourhood names were found (see extra_names.json)' % len(self.extra_names)
-        self.save_data_to_json(save_path, 'extra_names', self.extra_names)
-
-        print 'A total of %d attempts were made to create force geometries (see force_geometry_creation_attempts.json)' % len(self.force_geometry_creation_attempts)
-        self.save_data_to_json(save_path, 'force_geometry_creation_attempts', self.force_geometry_creation_attempts)
+        for i in data_to_process:
+            basename = i['basename']
+            message = i['message']
+            stored_data = getattr(self, basename)
+            print message
+            print '    (see %s.json)' % basename
+            self.save_data_to_json(save_path, basename, stored_data)
 
 
 logger = PoliceLogger()
