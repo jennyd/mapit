@@ -438,6 +438,7 @@ class Command(BaseCommand):
 
                 ds = DataSource(neighbourhood_kml)
                 layer = ds[0]
+                # FIXME No need at all to assume this:
                 # Assume only one feat in layer:
                 if len(layer) > 1:
                     raise Exception, "More than one feature in layer for %s (%s)" % (neighbourhood_code, force_name)
