@@ -445,8 +445,6 @@ class Command(BaseCommand):
 
                 neighbourhood = update_or_create_area(code=neighbourhood_code,
                                           area_type=neighbourhood_area_type,
-                                          # parent_area needs to be set here,
-                                          # rather than using find_parents.py:
                                           country=country,
                                           new_generation=new_generation,
                                           current_generation=current_generation,
@@ -456,6 +454,8 @@ class Command(BaseCommand):
                                           code_type=code_type,
                                           options=options,
                                           feat=feat,
+                                          # parent_area needs to be set here,
+                                          # rather than using find_parents.py:
                                           parent_area=force)
 
                 if options['commit']:
