@@ -285,16 +285,16 @@ def save_polygons_or_multipolygons(area, geometry):
 
 def update_or_create_area(code,
                           area_type,
-                          parent_area=None,
                           country,
                           new_generation,
                           current_generation,
                           neighbourhood_area_type,
-                          feat=None,
                           name_type,
                           name,
                           code_type,
-                          options):
+                          options,
+                          feat=None,
+                          parent_area=None):
     try:
         # Police neighbourhood codes are only guaranteed to be unique within
         # forces, not nationally, so parent_area is needed too.
@@ -408,16 +408,16 @@ class Command(BaseCommand):
             # Create the force, without any polygons for now:
             force = update_or_create_area(code=force_code,
                                           area_type=force_area_type,
-                                          parent_area=None,
                                           country=country,
                                           new_generation=new_generation,
                                           current_generation=current_generation,
                                           neighbourhood_area_type=neighbourhood_area_type,
-                                          feat=None,
                                           name_type=name_type,
                                           name=force_name,
                                           code_type=code_type,
-                                          options=options)
+                                          options=options,
+                                          feat=None,
+                                          parent_area=None)
 
 
             # Start dealing with neighbourhoods in this force:
@@ -458,16 +458,16 @@ class Command(BaseCommand):
                                           area_type=neighbourhood_area_type,
                                           # parent_area needs to be set here,
                                           # rather than using find_parents.py:
-                                          parent_area=force,
                                           country=country,
                                           new_generation=new_generation,
                                           current_generation=current_generation,
                                           neighbourhood_area_type=neighbourhood_area_type,
-                                          feat=feat,
                                           name_type=name_type,
                                           name=neighbourhood_name,
                                           code_type=code_type,
-                                          options=options)
+                                          options=options,
+                                          feat=feat,
+                                          parent_area=force)
 
                 if options['commit']:
                     # FIXME Getting these polygons only works when they have
