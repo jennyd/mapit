@@ -54,8 +54,9 @@ class PoliceLogger(object):
         transformation and simplification, and therefore needs to be excluded
         from the queryset to be aggregated for the force geometry.
         '''
-        # This requires the geometry to be saved and have an id, which is
-        # reasonable at the moment since it is used to filter a queryset:
+        # This requires the geometry to be saved and have an id, and uses the id
+        # as the key, which is reasonable at the moment since keys() is used to
+        # filter a queryset:
         self.invalid_polygons[geometry.id] = (force_code, neighbourhood_code)
 
     def log_missing_name(self, force_code, neighbourhood_code):
