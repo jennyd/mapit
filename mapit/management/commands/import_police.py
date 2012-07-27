@@ -105,7 +105,7 @@ class PoliceLogger(object):
             {'basename': 'invalid_before',
              'message': '%d features invalid before transformation' % len(self.invalid_before)},
             {'basename': 'invalid_polygons',
-             'message': "%d neighbourhood polygons are invalid and were excluded from their forces' polygons" % len(self.invalid_polygons.keys()},
+             'message': "%d neighbourhood polygons are invalid and were excluded from their forces' polygons" % len(self.invalid_polygons.keys())},
             {'basename': 'missing_names',
              'message': 'Names were missing for %d neighbourhoods' % len(self.missing_names)},
             {'basename': 'extra_names',
