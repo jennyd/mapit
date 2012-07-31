@@ -16,7 +16,7 @@ from django.core.management.base import BaseCommand
 # Not using LayerMapping as want more control, but what it does is what this does
 #from django.contrib.gis.utils import LayerMapping
 from django.contrib.gis.gdal import *
-from django.contrib.gis.geos import Polygon
+from django.contrib.gis.geos import LinearRing, Polygon
 
 from mapit.models import Area, Geometry, Generation, Country, Type, CodeType, NameType
 
@@ -189,9 +189,16 @@ def parse_police_names_json(names_path, options):
 
 def too_tiny(linear_ring):
     '''
-    Takes a linear ring, simplifies it as area.html does when displaying an area
-    on a map, and returns True if it is too small to be displayed and False
-    otherwise.
+    Takes a linear ring, puts it in a polygon, simplifies it as area.html does
+    when displaying an area on a map, and returns True if it is too small to be
+    displayed and False otherwise.
+
+    >>> too_tiny(LinearRing((0, 0), (0, 100), (100, 100), (100, 0), (0, 0)))
+    False
+    >>> too_tiny(LinearRing((533176.7676052941, 181046.6299361812), (533307.7457429301, 181040.88593647128), (533176.7676052982, 181046.62993618732), (533176.7676052941, 181046.6299361812)))
+    True
+    >>> too_tiny(LinearRing((533177, 181047), (533308, 181041), (533177, 181047), (533177, 181047)))
+    True
     '''
     # This must be the same tolerance as area.html uses for displaying maps:
     tolerance = 0.0001
