@@ -7,6 +7,7 @@ import HTMLParser
 import json
 import os
 import re
+import sys
 import xml.sax
 
 from xml.sax.handler import ContentHandler
@@ -360,9 +361,20 @@ class Command(BaseCommand):
             dest='debug_data',
             help='Save useful info about problems with the datasets',
         ),
+        make_option(
+            '--test',
+            action="store_true",
+            dest='doctests',
+            help='Run doctests',
+        ),
     )
 
     def handle(self, kml_path, names_path, **options):
+        if options['doctests']:
+            import doctest
+            doctest.testmod(sys.modules[__name__])
+            return
+
         current_generation = Generation.objects.current()
         new_generation = Generation.objects.new()
         if not new_generation:
