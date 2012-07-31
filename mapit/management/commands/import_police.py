@@ -17,7 +17,7 @@ from django.core.management.base import BaseCommand
 # Not using LayerMapping as want more control, but what it does is what this does
 #from django.contrib.gis.utils import LayerMapping
 from django.contrib.gis.gdal import *
-from django.contrib.gis.geos import LinearRing, Polygon
+from django.contrib.gis.geos import LinearRing, Polygon, MultiPolygon
 
 from mapit.models import Area, Geometry, Generation, Country, Type, CodeType, NameType
 
@@ -208,15 +208,40 @@ def too_tiny(linear_ring):
         return True
     return False
 
-def get_displayable_polygon(polygon):
+def get_displayable_polygon_or_multipolygon(geometry):
     '''
-    Return a new polygon, excluding any interior rings in the original polygon
-    which are too small to be displayed on the map.
+    Takes a polygon or multipolygon and returns a new geometry of the same type,
+    excluding any interior linear rings in the original geometry which are too
+    small to be displayed on the map.
     '''
-    if too_tiny(polygon[0]):
-        raise Exception, 'Outer boundary of polygon is too small to be displayed'
-    rings = [ring.coords for rings in polygon if not too_tiny(ring)]
-    return Polygon(*rings)
+    input_type = geometry.geom_type
+    if input_type == 'Polygon':
+        shapes = [geometry]
+        total_interior_rings_before = geometry.num_interior_rings
+    elif input_type == 'MultiPolygon':
+        shapes = geometry
+        total_interior_rings_before = sum([geometry.num_interior_rings for geometry in shapes])
+    else:
+        raise Exception, 'get_displayable_polygon_or_multipolygon expects a polygon or a multipolygon'
+
+    new_polys = []
+    for polygon in shapes:
+        if too_tiny(polygon[0]):
+            raise Exception, 'Outer boundary of polygon is too small to be displayed'
+        rings = [ring.coords for ring in polygon if not too_tiny(ring)]
+        new_polys.append(Polygon(*rings))
+    if len(new_polys) == 1:
+        total_interior_rings_after = new_polys[0].num_interior_rings
+        print  'Rings before:', total_interior_rings_before
+        print  'Rings after:', total_interior_rings_after
+        return new_polys[0]
+    elif len(new_polys) > 1:
+        total_interior_rings_after = sum([geometry.num_interior_rings for geometry in new_polys])
+        print  'Rings before:', total_interior_rings_before
+        print  'Rings after:', total_interior_rings_after
+        return MultiPolygon(*new_polys)
+    else:
+        return None
 
 def get_valid_polygon(feat):
     """
@@ -328,7 +353,7 @@ def update_or_create_area(code,
     # their children's polygons:
     if area_type == neighbourhood_area_type:
         g, valid_before, num_coords = get_valid_polygon(feat)
-        g = get_displayable_polygon(g)
+        g = get_displayable_polygon_or_multipolygon(g)
 
     if options['debug_data'] and area_type == neighbourhood_area_type and valid_before == False:
         # Keep track of neighbourhood geometries which were invalid before
@@ -537,6 +562,12 @@ class Command(BaseCommand):
                     if valid == True:
                         # Now we have a valid geometry to save:
                         break
+#                if force_geometry.geom_type == 'MultiPolygon':
+#                    shapes = force_geometry
+#                elif force_geometry.geom_type == 'Polygon':
+#                    shapes = [force_geometry]
+                print force_geometry.geom_type
+                force_geometry = get_displayable_polygon_or_multipolygon(force_geometry)
                 save_polygons_or_multipolygons(force, force_geometry)
             else:
                 print '(not trying to create force geometries as --commit not specified)'
