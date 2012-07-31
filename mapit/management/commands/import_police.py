@@ -240,13 +240,15 @@ def get_displayable_polygon_or_multipolygon(geometry):
         new_polys.append(Polygon(*rings))
     if len(new_polys) == 1:
         total_interior_rings_after = new_polys[0].num_interior_rings
-        print  'Rings before:', total_interior_rings_before
-        print  'Rings after:', total_interior_rings_after
+        if total_interior_rings_before != 0 or total_interior_rings_after != 0:
+            print  'Rings before:', total_interior_rings_before
+            print  'Rings after:', total_interior_rings_after
         return new_polys[0]
     elif len(new_polys) > 1:
         total_interior_rings_after = sum([geometry.num_interior_rings for geometry in new_polys])
-        print  'Rings before:', total_interior_rings_before
-        print  'Rings after:', total_interior_rings_after
+        if total_interior_rings_before != 0 or total_interior_rings_after != 0:
+            print  'Rings before:', total_interior_rings_before
+            print  'Rings after:', total_interior_rings_after
         return MultiPolygon(*new_polys)
     else:
         return None
