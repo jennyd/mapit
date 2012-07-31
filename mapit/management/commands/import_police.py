@@ -195,8 +195,8 @@ def too_tiny(linear_ring):
     '''
     # This must be the same tolerance as area.html uses for displaying maps:
     tolerance = 0.0001
-    simplified_ring = linear_ring.simplify(tolerance=tolerance)
-    if simplified_ring.empty:
+    simplified_poly = Polygon(linear_ring).simplify(tolerance=tolerance)
+    if simplified_poly.empty:
         return True
     return False
 
