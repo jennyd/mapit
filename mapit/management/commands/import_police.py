@@ -369,6 +369,7 @@ def update_or_create_area(code,
     if options['debug_data'] and area_type == neighbourhood_area_type and valid_before == False:
         # Keep track of neighbourhood geometries which were invalid before
         # transforming:
+        neighbourhood_code = code
         logger.log_invalid_polygon_before_transformation(num_coords, force_code, neighbourhood_code)
 
     if options['commit']:
