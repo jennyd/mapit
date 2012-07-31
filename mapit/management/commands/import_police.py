@@ -334,6 +334,7 @@ def update_or_create_area(code,
                           name_type,
                           name,
                           code_type,
+                          force_code,
                           options,
                           feat=None,
                           parent_area=None):
@@ -466,6 +467,7 @@ class Command(BaseCommand):
                                           name_type=name_type,
                                           name=force_name,
                                           code_type=code_type,
+                                          force_code=force_code,
                                           options=options,
                                           feat=None,
                                           parent_area=None)
@@ -515,6 +517,7 @@ class Command(BaseCommand):
                                           name_type=name_type,
                                           name=neighbourhood_name,
                                           code_type=code_type,
+                                          force_code=force_code,
                                           options=options,
                                           feat=feat,
                                           # parent_area needs to be set here,
