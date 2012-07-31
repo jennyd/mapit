@@ -120,7 +120,7 @@ class PoliceLogger(object):
             message = i['message']
             stored_data = getattr(self, basename)
             print message
-            print '    (see %s.json)' % basename
+            print '    (see %s%s.json)' % (save_path, basename)
             self.save_data_to_json(save_path, basename, stored_data)
 
 
