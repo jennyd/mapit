@@ -203,7 +203,15 @@ def too_tiny(linear_ring):
     '''
     # This must be the same tolerance as area.html uses for displaying maps:
     tolerance = 0.0001
-    simplified_poly = Polygon(linear_ring).simplify(tolerance=tolerance)
+    new_srid = 4326
+    # The Polygon appears to not know about the SRID unless it is specified here:
+    original_poly = Polygon(linear_ring, srid=linear_ring.srid)
+#    print 'linear_ring.srid:', linear_ring.srid
+#    print 'linear_ring.num_coords:', linear_ring.num_coords
+#    print 'original_poly.num_coords:', original_poly.num_coords
+#    print 'original_poly.srid:', original_poly.srid
+    transformed_poly = original_poly.transform(new_srid, clone=True)
+    simplified_poly = transformed_poly.simplify(tolerance=tolerance)
     if simplified_poly.empty:
         return True
     return False
