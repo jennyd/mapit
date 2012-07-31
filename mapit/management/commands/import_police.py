@@ -84,7 +84,7 @@ class PoliceLogger(object):
         was successful, and, if a geometry was created but was invalid, the
         reason for it being invalid.
         '''
-        force_geometry_creation_attempts.append((force_code, method, successful, valid_reason))
+        self.force_geometry_creation_attempts.append((force_code, method, successful, valid_reason))
 
     def save_data_to_json(self, save_path, basename, data):
         with open(os.path.join(save_path, basename+'.json'), 'w') as f:
@@ -534,7 +534,7 @@ class Command(BaseCommand):
             if options['commit']:
                 # Create a force area geometry from its neighbourhood children,
                 # excluding any polygons which are still invalid:
-                valid_polys = Geometry.objects.filter(area__parent_area_id=force.id).exclude(id__in=invalid_polygons_dict.keys())
+                valid_polys = Geometry.objects.filter(area__parent_area_id=force.id).exclude(id__in=logger.invalid_polygons.keys())
                 print 'Trying to create a force geometry for %s' % force_code
                 # unionagg() fails on some forces in the May 2012 dataset despite
                 # all their children's polygons being valid (gloucestershire,
