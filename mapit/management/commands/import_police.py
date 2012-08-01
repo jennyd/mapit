@@ -28,6 +28,7 @@ class PoliceLogger(object):
         self.name_max_length = 0
         self.invalid_before = []
         self.invalid_polygons = {}
+        self.outer_ring_too_tiny = []
         self.missing_names = []
         self.extra_names = []
         self.force_geometry_creation_attempts = []
@@ -59,6 +60,14 @@ class PoliceLogger(object):
         # as the key, which is reasonable at the moment since keys() is used to
         # filter a queryset:
         self.invalid_polygons[geometry.id] = (force_code, neighbourhood_code)
+
+    def log_outer_ring_too_tiny(self, force_code, neighbourhood_code, ring_coords):
+        '''Store details of geometries in which the outer boundary ring of a
+        polygon is too small to be displayed on the map. neighbourhood_code is
+        'force' for forces. (I expect these to be tiny areas created by
+        simplifying originally invalid neighbourhood geometries.)
+        '''
+        self.outer_ring_too_tiny.append((force_code, neighbourhood_code, ring_coords))
 
     def log_missing_name(self, force_code, neighbourhood_code):
         '''Store details of a neighbourhood for which there is no name in the
@@ -107,6 +116,8 @@ class PoliceLogger(object):
              'message': '%d features invalid before transformation' % len(self.invalid_before)},
             {'basename': 'invalid_polygons',
              'message': "%d neighbourhood polygons are invalid and were excluded from their forces' polygons" % len(self.invalid_polygons.keys())},
+            {'basename': 'outer_ring_too_tiny',
+             'message': "%d polygons were too small to be displayed on the map and were not saved" % len(self.outer_ring_too_tiny)},
             {'basename': 'missing_names',
              'message': 'Names were missing for %d neighbourhoods' % len(self.missing_names)},
             {'basename': 'extra_names',
@@ -216,7 +227,7 @@ def too_tiny(linear_ring):
         return True
     return False
 
-def get_displayable_polygon_or_multipolygon(geometry):
+def get_displayable_polygon_or_multipolygon(geometry, force_code, neighbourhood_code):
     '''
     Takes a polygon or multipolygon and returns a new geometry of the same type,
     excluding any interior linear rings in the original geometry which are too
@@ -235,7 +246,9 @@ def get_displayable_polygon_or_multipolygon(geometry):
     new_polys = []
     for polygon in shapes:
         if too_tiny(polygon[0]):
-            raise Exception, 'Outer boundary of polygon is too small to be displayed'
+            print 'Outer boundary of polygon is too small to be displayed; ignoring this polygon'
+            logger.log_outer_ring_too_tiny(force_code, neighbourhood_code, polygon[0].coords)
+            continue
         rings = [ring.coords for ring in polygon if not too_tiny(ring)]
         new_polys.append(Polygon(*rings))
     if len(new_polys) == 1:
@@ -364,7 +377,7 @@ def update_or_create_area(code,
     # their children's polygons:
     if area_type == neighbourhood_area_type:
         g, valid_before, num_coords = get_valid_polygon(feat)
-        g = get_displayable_polygon_or_multipolygon(g)
+        g = get_displayable_polygon_or_multipolygon(g, force_code, code)
 
     if options['debug_data'] and area_type == neighbourhood_area_type and valid_before == False:
         # Keep track of neighbourhood geometries which were invalid before
@@ -376,7 +389,7 @@ def update_or_create_area(code,
         m.save()
         m.names.update_or_create({ 'type': name_type }, { 'name': name })
         m.codes.update_or_create({ 'type': code_type }, { 'code': code })
-        if area_type == neighbourhood_area_type:
+        if area_type == neighbourhood_area_type and g is not None:
             save_polygons_or_multipolygons(m, g)
 
     return m
@@ -581,7 +594,8 @@ class Command(BaseCommand):
 #                elif force_geometry.geom_type == 'Polygon':
 #                    shapes = [force_geometry]
                 print force_geometry.geom_type
-                force_geometry = get_displayable_polygon_or_multipolygon(force_geometry)
+                force_geometry = get_displayable_polygon_or_multipolygon(force_geometry, force_code, 'force')
+                # Assuming that there is still some kind of force_geometry:
                 save_polygons_or_multipolygons(force, force_geometry)
             else:
                 print '(not trying to create force geometries as --commit not specified)'
