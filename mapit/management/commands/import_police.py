@@ -227,6 +227,19 @@ def too_tiny(linear_ring):
         return True
     return False
 
+def get_displayable_polygon(polygon, force_code, neighbourhood_code):
+    '''
+    Takes a polygon and returns a new polygon, excluding any interior linear
+    rings in the original geometry which are too small to be displayed on the map,
+    or None if the outer boundary is too small to be displayed.
+    '''
+    if too_tiny(polygon[0]):
+        print 'Outer boundary of polygon is too small to be displayed; ignoring this polygon'
+        logger.log_outer_ring_too_tiny(force_code, neighbourhood_code, polygon[0].coords)
+        return None
+    rings = [ring for ring in polygon if not too_tiny(ring)]
+    return Polygon(*rings)
+
 def get_displayable_polygon_or_multipolygon(geometry, force_code, neighbourhood_code):
     '''
     Takes a polygon or multipolygon and returns a new geometry of the same type,
@@ -236,35 +249,32 @@ def get_displayable_polygon_or_multipolygon(geometry, force_code, neighbourhood_
     input_type = geometry.geom_type
     if input_type == 'Polygon':
         shapes = [geometry]
-        total_interior_rings_before = geometry.num_interior_rings
+        holes_before = geometry.num_interior_rings
     elif input_type == 'MultiPolygon':
         shapes = geometry
-        total_interior_rings_before = sum([geometry.num_interior_rings for geometry in shapes])
+        holes_before = sum(geometry.num_interior_rings for geometry in shapes)
     else:
         raise Exception, 'get_displayable_polygon_or_multipolygon expects a polygon or a multipolygon'
 
-    new_polys = []
-    for polygon in shapes:
-        if too_tiny(polygon[0]):
-            print 'Outer boundary of polygon is too small to be displayed; ignoring this polygon'
-            logger.log_outer_ring_too_tiny(force_code, neighbourhood_code, polygon[0].coords)
-            continue
-        rings = [ring.coords for ring in polygon if not too_tiny(ring)]
-        new_polys.append(Polygon(*rings))
+    # Discard all False values (here, None or any for which len(p) == 0):
+    new_polys = filter(None,
+                       (get_displayable_polygon(p, force_code, neighbourhood_code)
+                           for p in shapes))
+
     if len(new_polys) == 1:
-        total_interior_rings_after = new_polys[0].num_interior_rings
-        if total_interior_rings_before != 0 or total_interior_rings_after != 0:
-            print  'Rings before:', total_interior_rings_before
-            print  'Rings after:', total_interior_rings_after
-        return new_polys[0]
+        new_geometry = new_polys[0]
+        holes_after = new_geometry.num_interior_rings
     elif len(new_polys) > 1:
-        total_interior_rings_after = sum([geometry.num_interior_rings for geometry in new_polys])
-        if total_interior_rings_before != 0 or total_interior_rings_after != 0:
-            print  'Rings before:', total_interior_rings_before
-            print  'Rings after:', total_interior_rings_after
-        return MultiPolygon(*new_polys)
+        new_geometry = MultiPolygon(*new_polys)
+        holes_after = sum(poly.num_interior_rings for poly in new_geometry)
     else:
-        return None
+        new_geometry = None
+        holes_after = '(no geometry to save)'
+
+    if holes_before != holes_after:
+        print  'Interior rings before:', holes_before
+        print  'Interior rings after:', holes_after
+    return new_geometry
 
 def get_valid_polygon(feat):
     """
