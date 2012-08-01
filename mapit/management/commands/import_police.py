@@ -29,6 +29,7 @@ class PoliceLogger(object):
         self.invalid_before = []
         self.invalid_polygons = {}
         self.outer_ring_too_tiny = []
+        self.removed_holes = []
         self.missing_names = []
         self.extra_names = []
         self.force_geometry_creation_attempts = []
@@ -68,6 +69,9 @@ class PoliceLogger(object):
         simplifying originally invalid neighbourhood geometries.)
         '''
         self.outer_ring_too_tiny.append((force_code, neighbourhood_code, ring_coords))
+
+    def log_removed_holes(self, force_code, neighbourhood_code, holes_before, holes_after):
+        self.removed_holes.append((force_code, neighbourhood_code, holes_before, holes_after))
 
     def log_missing_name(self, force_code, neighbourhood_code):
         '''Store details of a neighbourhood for which there is no name in the
@@ -118,6 +122,8 @@ class PoliceLogger(object):
              'message': "%d neighbourhood polygons are invalid and were excluded from their forces' polygons" % len(self.invalid_polygons.keys())},
             {'basename': 'outer_ring_too_tiny',
              'message': "%d polygons were too small to be displayed on the map and were not saved" % len(self.outer_ring_too_tiny)},
+            {'basename': 'removed_holes',
+             'message': "%d polygons contained holes which were too small to be displayed on the map and were removed" % len(self.removed_holes)},
             {'basename': 'missing_names',
              'message': 'Names were missing for %d neighbourhoods' % len(self.missing_names)},
             {'basename': 'extra_names',
@@ -272,6 +278,7 @@ def get_displayable_polygon_or_multipolygon(geometry, force_code, neighbourhood_
         holes_after = '(no geometry to save)'
 
     if holes_before != holes_after:
+        logger.log_removed_holes(force_code, neighbourhood_code, holes_before, holes_after)
         print  'Interior rings before:', holes_before
         print  'Interior rings after:', holes_after
     return new_geometry
