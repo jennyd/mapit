@@ -19,7 +19,7 @@ from django.core.management.base import BaseCommand
 from django.contrib.gis.gdal import *
 from django.contrib.gis.geos import LinearRing, Polygon, MultiPolygon
 
-from mapit.models import Area, Geometry, Generation, Country, Type, CodeType, NameType
+from mapit.models import Area, Geometry, Generation, Code, Name, Country, Type, CodeType, NameType
 
 
 class PoliceLogger(object):
@@ -43,8 +43,19 @@ class PoliceLogger(object):
         self.name_max_length = max(len(name), self.name_max_length)
 
     def print_code_and_name_max_lengths(self):
+        try:
+            existing_code_max_length = Code._meta.get_field('code').max_length
+        except:
+            existing_code_max_length = None
+        try:
+            existing_name_max_length = Name._meta.get_field('name').max_length
+        except:
+            existing_name_max_length = None
+
         print 'Maximum length required for Code.code:', self.code_max_length
+        print '    (currently set to', str(existing_code_max_length)+')'
         print 'Maximum length required for Name.name:', self.name_max_length
+        print '    (currently set to', str(existing_name_max_length)+')'
 
     def log_invalid_polygon_before_transformation(self, num_coords, force_code, neighbourhood_code):
         '''Store details of a neighbourhood polygon which is invalid when it is
