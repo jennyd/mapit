@@ -493,7 +493,8 @@ class Command(BaseCommand):
         if options['debug_data']:
             # Finally, print and save the logged data about problems with the
             # datasets:
-            date_string = datetime.date.today().isoformat()
+            date = datetime.datetime.today()
+            date_string = datetime.datetime.strftime(date, '%Y-%m-%d_%H:%M:%S')
             save_path = '../data/Police-data-problems_'+date_string+'/'
             if not os.access(save_path, os.F_OK):
                 os.mkdir(save_path)
