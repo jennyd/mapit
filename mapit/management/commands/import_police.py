@@ -71,7 +71,6 @@ def parse_police_names_json(names_path, options):
 
     for force_id in names_dict.keys():
         with open(os.path.join(names_path, force_id+'_neighbourhoods.json')) as f:
-#            print 'Parsing neighbourhood names in', force_id
             neighbourhood_names = json.load(f)
             for neighbourhood in neighbourhood_names:
                 # As above, convert HTML entities:
@@ -106,10 +105,6 @@ def too_tiny(linear_ring):
     new_srid = 4326
     # The Polygon appears to not know about the SRID unless it is specified here:
     original_poly = Polygon(linear_ring, srid=linear_ring.srid)
-#    print 'linear_ring.srid:', linear_ring.srid
-#    print 'linear_ring.num_coords:', linear_ring.num_coords
-#    print 'original_poly.num_coords:', original_poly.num_coords
-#    print 'original_poly.srid:', original_poly.srid
     transformed_poly = original_poly.transform(new_srid, clone=True)
     simplified_poly = transformed_poly.simplify(tolerance=tolerance)
     if simplified_poly.empty:
@@ -489,10 +484,6 @@ class Command(BaseCommand):
                     if valid == True:
                         # Now we have a valid geometry to save:
                         break
-#                if force_geometry.geom_type == 'MultiPolygon':
-#                    shapes = force_geometry
-#                elif force_geometry.geom_type == 'Polygon':
-#                    shapes = [force_geometry]
                 print force_geometry.geom_type
                 force_geometry = get_displayable_polygon_or_multipolygon(force_geometry, force_code, 'force')
                 # Assuming that there is still some kind of force_geometry:
