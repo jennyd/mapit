@@ -101,7 +101,7 @@ class PoliceLogger(object):
 
     def save_data_to_json(self, save_path, basename, data):
         with open(os.path.join(save_path, basename+'.json'), 'w') as f:
-            print '  Saving %s.json' % basename
+#            print '  Saving %s.json' % basename
             json.dump(data, f, indent=4)
 
     def print_and_save_logged_data(self, save_path):
@@ -173,6 +173,7 @@ def parse_police_names_json(names_path, options):
     h = HTMLParser.HTMLParser()
 
     with open(os.path.join(names_path, 'forces.json')) as f:
+        print 'Parsing names from API data'
         force_names = json.load(f)
         names_dict = {}
         for force in force_names:
@@ -188,7 +189,7 @@ def parse_police_names_json(names_path, options):
 
     for force_id in names_dict.keys():
         with open(os.path.join(names_path, force_id+'_neighbourhoods.json')) as f:
-            print 'Parsing neighbourhood names in', force_id
+#            print 'Parsing neighbourhood names in', force_id
             neighbourhood_names = json.load(f)
             for neighbourhood in neighbourhood_names:
                 # As above, convert HTML entities:
