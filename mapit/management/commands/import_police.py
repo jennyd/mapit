@@ -208,9 +208,9 @@ def parse_police_names_json(names_path, options):
 
 def too_tiny(linear_ring):
     '''
-    Takes a linear ring, puts it in a polygon, simplifies it as area.html does
-    when displaying an area on a map, and returns True if it is too small to be
-    displayed and False otherwise.
+    Takes a linear ring, puts it in a polygon, transforms and simplifies it as
+    area.html does when displaying an area on a map, and returns True if it is
+    too small to be displayed and False otherwise.
 
     >>> too_tiny(LinearRing((0, 0), (0, 100), (100, 100), (100, 0), (0, 0)))
     False
