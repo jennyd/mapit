@@ -99,7 +99,7 @@ def too_tiny(linear_ring):
     # This must be the same tolerance as area.html uses for displaying maps:
     tolerance = 0.0001
     new_srid = 4326
-    # The Polygon appears to not know about the SRID unless it is specified here:
+    # The Polygon doesn't implicitly use the linear ring's SRID:
     original_poly = Polygon(linear_ring, srid=linear_ring.srid)
     transformed_poly = original_poly.transform(new_srid, clone=True)
     simplified_poly = transformed_poly.simplify(tolerance=tolerance)
@@ -111,7 +111,7 @@ def get_displayable_polygon(polygon, force_code, neighbourhood_code):
     '''
     Takes a polygon and returns a new polygon, excluding any interior linear
     rings in the original geometry which are too small to be displayed on the map,
-    or None if the outer boundary is too small to be displayed.
+    or returns None if the outer boundary is too small to be displayed.
     '''
     if too_tiny(polygon[0]):
         print 'Outer boundary of polygon is too small to be displayed; ignoring this polygon'
@@ -404,9 +404,10 @@ class Command(BaseCommand):
 
                 ds = DataSource(os.path.join(force_directory, neighbourhood))
                 layer = ds[0]
-                # FIXME No need at all to assume this:
-                # Assume only one feat in layer:
                 if len(layer) > 1:
+                    # In fact, it shouldn't be a problem to deal with this, but
+                    # it doesn't currently arise, so throw an exception so that
+                    # we notice:
                     raise Exception, "More than one feature in layer for %s (%s)" % (neighbourhood_code, force_name)
                 feat = layer[0]
 
@@ -427,10 +428,6 @@ class Command(BaseCommand):
                                           parent_area=force)
 
                 if options['commit']:
-                    # FIXME Getting these polygons only works when they have
-                    # been saved to the database. Make this just use a list of
-                    # unsaved polygons instead?
-
                     # unionagg() fails when invalid polygons are included, so keep
                     # track of them to exclude later:
                     # (I think there shouldn't be any invalid polygons by now,
