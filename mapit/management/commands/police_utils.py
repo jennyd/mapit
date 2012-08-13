@@ -52,7 +52,7 @@ class PoliceLogger(object):
         # This requires the geometry to be saved and have an id, and uses the id
         # as the key, which is reasonable at the moment since keys() is used to
         # filter a queryset:
-        self.invalid_polygons[geometry.id] = (force_code, neighbourhood_code)
+        self.invalid_polygons[geometry_id] = (force_code, neighbourhood_code)
 
     def log_outer_ring_too_tiny(self, force_code, neighbourhood_code, ring_coords):
         '''Store details of geometries in which the outer boundary ring of a
