@@ -8,9 +8,7 @@ import json
 import os
 import re
 import sys
-import xml.sax
 
-from xml.sax.handler import ContentHandler
 from optparse import make_option
 
 from django.core.management.base import BaseCommand
@@ -404,13 +402,7 @@ class Command(BaseCommand):
                         logger.log_missing_name(force_code, neighbourhood_code)
                 print "  Importing neighbourhood %s (%s) from %s" % (neighbourhood_name, neighbourhood_code, force_name)
 
-
-                # Need to parse the KML manually to get the ExtendedData
-                kml_data = KML()
-                neighbourhood_kml = os.path.join(force_directory, neighbourhood)
-                xml.sax.parse(neighbourhood_kml, kml_data)
-
-                ds = DataSource(neighbourhood_kml)
+                ds = DataSource(os.path.join(force_directory, neighbourhood))
                 layer = ds[0]
                 # FIXME No need at all to assume this:
                 # Assume only one feat in layer:
@@ -507,26 +499,4 @@ class Command(BaseCommand):
             print '----------------------------------------'
             print ''
             logger.print_and_save_logged_data(save_path)
-
-
-class KML(ContentHandler):
-    def __init__(self, *args, **kwargs):
-        self.content = ''
-        self.data = {}
-
-    def characters(self, content):
-        self.content += content
-
-    def endElement(self, name):
-        if name == 'name':
-            self.current = {}
-            self.data[self.content.strip()] = self.current
-        elif name == 'value':
-            self.current[self.name] = self.content.strip()
-            self.name = None
-        self.content = ''
-
-    def startElement(self, name, attr):
-        if name == 'Data':
-            self.name = attr['name']
 
