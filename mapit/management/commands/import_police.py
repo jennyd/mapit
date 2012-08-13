@@ -384,6 +384,7 @@ class Command(BaseCommand):
 
             # Start dealing with neighbourhoods in this force:
             neighbourhood_kmls_codes_list = []
+            geometries_to_exclude = []
 
             force_directory = os.path.join(kml_path, force_code)
 
@@ -445,6 +446,7 @@ class Command(BaseCommand):
                     for geometry in neighbourhood.polygons.all():
                         if not geometry.polygon.valid:
                             log_invalid_polygon_to_exclude(geometry.id, force_code, neighbourhood_code)
+                            geometries_to_exclude.append(geometry.id)
                         else:
                             continue
 
@@ -456,7 +458,7 @@ class Command(BaseCommand):
             if options['commit']:
                 # Create a force area geometry from its neighbourhood children,
                 # excluding any polygons which are still invalid:
-                valid_polys = Geometry.objects.filter(area__parent_area_id=force.id).exclude(id__in=logger.invalid_polygons.keys())
+                valid_polys = Geometry.objects.filter(area__parent_area_id=force.id).exclude(id__in=geometries_to_exclude)
                 print 'Trying to create a force geometry for %s' % force_code
                 # unionagg() fails on some forces in the May 2012 dataset despite
                 # all their children's polygons being valid (gloucestershire,
