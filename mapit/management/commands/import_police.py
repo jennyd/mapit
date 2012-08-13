@@ -290,7 +290,7 @@ def update_or_create_area(code,
 
 class Command(BaseCommand):
     help = 'Import police forces and neighbourhoods from KML files and names data from the police API'
-    args = '<kml_path names_path>'
+    args = '<kml_path> <names_path>'
     option_list = BaseCommand.option_list + (
         make_option(
             '--commit',
