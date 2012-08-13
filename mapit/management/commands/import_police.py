@@ -285,7 +285,9 @@ def update_or_create_area(code,
         if area_type == neighbourhood_area_type and g is not None:
             save_polygons_or_multipolygons(m, g)
 
-    return m
+    # m is an Area instance (which might be unsaved)
+    # g is a GEOS Polygon or MultiPolygon
+    return (m, g)
 
 
 class Command(BaseCommand):
@@ -365,7 +367,7 @@ class Command(BaseCommand):
 #            country = wales if (force_code in welsh_forces) else england
 
             # Create the force, without any polygons for now:
-            force = update_or_create_area(code=force_code,
+            force, geom = update_or_create_area(code=force_code,
                                           area_type=force_area_type,
                                           country=country,
                                           new_generation=new_generation,
@@ -415,7 +417,7 @@ class Command(BaseCommand):
                     raise Exception, "More than one feature in layer for %s (%s)" % (neighbourhood_code, force_name)
                 feat = layer[0]
 
-                neighbourhood = update_or_create_area(code=neighbourhood_code,
+                neighbourhood, geom = update_or_create_area(code=neighbourhood_code,
                                           area_type=neighbourhood_area_type,
                                           country=country,
                                           new_generation=new_generation,
