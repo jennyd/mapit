@@ -39,13 +39,13 @@ class PoliceLogger(object):
         print 'Maximum length required for Name.name:', self.name_max_length
         print '    (currently set to', str(existing_name_max_length)+')'
 
-    def log_invalid_polygon_before_transformation(self, num_coords, force_code, neighbourhood_code):
+    def log_invalid_polygon_before_transformation(self, num_coords, force_code, nbh_code):
         '''Store details of a neighbourhood polygon which is invalid when it is
         extracted from the KML file.
         '''
-        self.invalid_before.append((num_coords, force_code, neighbourhood_code))
+        self.invalid_before.append((num_coords, force_code, nbh_code))
 
-    def log_invalid_polygon_to_exclude(self, geometry_id, force_code, neighbourhood_code):
+    def log_invalid_polygon_to_exclude(self, geometry_id, force_code, nbh_code):
         '''Store details of a neighbourhood polygon which is still invalid after
         transformation and simplification, and therefore needs to be excluded
         from the queryset to be aggregated for the force geometry.
@@ -53,37 +53,37 @@ class PoliceLogger(object):
         # This requires the geometry to be saved and have an id, and uses the id
         # as the key, which is reasonable at the moment since keys() is used to
         # filter a queryset:
-        self.invalid_polygons[geometry_id] = (force_code, neighbourhood_code)
+        self.invalid_polygons[geometry_id] = (force_code, nbh_code)
 
-    def log_outer_ring_too_tiny(self, force_code, neighbourhood_code, ring_coords):
+    def log_outer_ring_too_tiny(self, force_code, nbh_code, ring_coords):
         '''Store details of geometries in which the outer boundary ring of a
-        polygon is too small to be displayed on the map. neighbourhood_code is
+        polygon is too small to be displayed on the map. nbh_code is
         'force' for forces. (I expect these to be tiny areas created by
         simplifying originally invalid neighbourhood geometries.)
         '''
-        self.outer_ring_too_tiny.append((force_code, neighbourhood_code, ring_coords))
+        self.outer_ring_too_tiny.append((force_code, nbh_code, ring_coords))
 
-    def log_removed_holes(self, force_code, neighbourhood_code, holes_before, holes_after):
-        self.removed_holes.append((force_code, neighbourhood_code, holes_before, holes_after))
+    def log_removed_holes(self, force_code, nbh_code, holes_before, holes_after):
+        self.removed_holes.append((force_code, nbh_code, holes_before, holes_after))
 
-    def log_missing_name(self, force_code, neighbourhood_code):
+    def log_missing_name(self, force_code, nbh_code):
         '''Store details of a neighbourhood for which there is no name in the
         API dataset. This is called once per neighbourhood.
         '''
-        self.missing_names.append((force_code, neighbourhood_code))
+        self.missing_names.append((force_code, nbh_code))
 
-    def log_extra_names(self, force_code, neighbourhood_kmls_codes_list, force_names_dict):
+    def log_extra_names(self, force_code, nbh_kmls_codes_list, force_names_dict):
         '''Store extra neighbourhood names from the API dataset whose codes do
         not match any in the KMLs dataset. This is called once per force.
         '''
-        neighbourhood_kmls_codes_set = set(neighbourhood_kmls_codes_list)
-        neighbourhood_names_codes_set = set(force_names_dict.keys())
-        extra_codes_set = neighbourhood_names_codes_set - neighbourhood_kmls_codes_set
-        for neighbourhood_code in extra_codes_set:
+        nbh_kmls_codes_set = set(nbh_kmls_codes_list)
+        nbh_names_codes_set = set(force_names_dict.keys())
+        extra_codes_set = nbh_names_codes_set - nbh_kmls_codes_set
+        for nbh_code in extra_codes_set:
             self.extra_names.append((force_code,
-                                     neighbourhood_code,
+                                     nbh_code,
                                      # neighbourhood name:
-                                     force_names_dict[neighbourhood_code]))
+                                     force_names_dict[nbh_code]))
 
     def log_force_geometry_creation_attempt(self, force_code, method, successful, valid_reason):
         '''Store a force code, the aggregation method attempted, whether it
