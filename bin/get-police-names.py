@@ -60,9 +60,9 @@ forces = json.loads(forces)
 for force in forces:
     force_id = force['id']
     print 'Getting neighbourhoods for %s' % (force_id)
-    neighbourhoods_url = os.path.join(base_url, force_id, 'neighbourhoods')
-    passman.add_password(None, neighbourhoods_url, username, password)
-    neighbourhoods = urllib2.urlopen(neighbourhoods_url).read()
+    nbhs_url = os.path.join(base_url, force_id, 'neighbourhoods')
+    passman.add_password(None, nbhs_url, username, password)
+    nbhs = urllib2.urlopen(nbhs_url).read()
     with open(os.path.join(save_path, force_id+'_neighbourhoods.json'), 'w') as f:
-        f.write(neighbourhoods)
+        f.write(nbhs)
 
