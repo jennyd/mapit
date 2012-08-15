@@ -488,7 +488,9 @@ class Command(BaseCommand):
             # datasets:
             date = datetime.datetime.today()
             date_string = datetime.datetime.strftime(date, '%Y-%m-%d_%H:%M:%S')
-            save_path = '../data/Police-data-problems_'+date_string+'/'
+            commands_directory = os.path.dirname(os.path.realpath(__file__))
+            save_path = os.path.join(commands_directory, '..', '..', '..', 'data', 'Police-data-problems_'+date_string)
+
             if not os.access(save_path, os.F_OK):
                 os.mkdir(save_path)
 
