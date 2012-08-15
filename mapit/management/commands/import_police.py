@@ -489,7 +489,7 @@ class Command(BaseCommand):
             date = datetime.datetime.today()
             date_string = datetime.datetime.strftime(date, '%Y-%m-%d_%H:%M:%S')
             commands_directory = os.path.dirname(os.path.realpath(__file__))
-            save_path = os.path.join(commands_directory, '..', '..', '..', 'data', 'Police-data-problems_'+date_string)
+            save_path = os.path.normpath(os.path.join(commands_directory, '..', '..', '..', 'data', 'Police-debug-data-output_'+date_string))
 
             if not os.access(save_path, os.F_OK):
                 os.mkdir(save_path)
