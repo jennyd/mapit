@@ -200,18 +200,6 @@ def get_valid_polygon(feat):
 
     return (g, valid_before, geos_geometry.num_coords)
 
-def add_new_two_d_polygon(area, polygon):
-    """
-    This takes an Area and a GEOSGeometry polygon, and creates and returns a
-    Geometry instance with a two-dimensional polygon for the area.
-    """
-    # XXX This doesn't check options['commit'], but should obviously only be
-    # called when we do want to commit.
-    # FIXME Check if polygons really need to be 2D now - must_be_two_d isn't in
-    # save_polygons any more
-    must_be_two_d = re.sub(r'([\d.-]+\s+[\d.-]+)(\s+[\d.-]+)(,|\)\))', r'\1\3', polygon.wkt)
-    return area.polygons.create(polygon=must_be_two_d)
-
 def save_polygons_or_multipolygons(area, geometry):
     """
     This takes an Area and a GEOSGeometry object, and saves the geometry (as one
@@ -229,7 +217,7 @@ def save_polygons_or_multipolygons(area, geometry):
         raise Exception, "geometry for %s is neither a Polygon nor a MultiPolygon" % area
     area.polygons.all().delete()
     for polygon in shapes:
-        new_polygon = add_new_two_d_polygon(area, polygon)
+        new_polygon = area.polygons.create(polygon=polygon.wkt)
 
 def update_or_create_area(code,
                           area_type,
