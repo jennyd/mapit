@@ -89,11 +89,11 @@ def too_tiny(linear_ring):
     area.html does when displaying an area on a map, and returns True if it is
     too small to be displayed and False otherwise.
 
-    >>> too_tiny(LinearRing((0, 0), (0, 100), (100, 100), (100, 0), (0, 0)))
+    >>> too_tiny(LinearRing((0, 0), (0, 100), (100, 100), (100, 0), (0, 0), srid=27700))
     False
-    >>> too_tiny(LinearRing((533176.7676052941, 181046.6299361812), (533307.7457429301, 181040.88593647128), (533176.7676052982, 181046.62993618732), (533176.7676052941, 181046.6299361812)))
+    >>> too_tiny(LinearRing((533176.7676052941, 181046.6299361812), (533307.7457429301, 181040.88593647128), (533176.7676052982, 181046.62993618732), (533176.7676052941, 181046.6299361812), srid=27700))
     True
-    >>> too_tiny(LinearRing((533177, 181047), (533308, 181041), (533177, 181047), (533177, 181047)))
+    >>> too_tiny(LinearRing((533177, 181047), (533308, 181041), (533177, 181047), (533177, 181047), srid=27700))
     True
     '''
     # This must be the same tolerance as area.html uses for displaying maps:
