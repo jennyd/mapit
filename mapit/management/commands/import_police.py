@@ -67,16 +67,16 @@ def parse_police_names_json(names_path, options):
 
     for force_id in names_dict.keys():
         with open(os.path.join(names_path, force_id+'_neighbourhoods.json')) as f:
-            neighbourhood_names = json.load(f)
-            for neighbourhood in neighbourhood_names:
+            nbh_names = json.load(f)
+            for nbh in nbh_names:
                 # As above, convert HTML entities:
-                neighbourhood['name'] = h.unescape(neighbourhood['name'])
-                if neighbourhood['id'] in names_dict[force_id][1]:
-                    raise Exception, "Neighbourhood id %s found twice in force %s in JSON" % (neighbourhood['id'], force_id)
-                names_dict[force_id][1][neighbourhood['id']] = neighbourhood['name']
+                nbh['name'] = h.unescape(nbh['name'])
+                if nbh['id'] in names_dict[force_id][1]:
+                    raise Exception, "Neighbourhood id %s found twice in force %s in JSON" % (nbh['id'], force_id)
+                names_dict[force_id][1][nbh['id']] = nbh['name']
                 if logger:
-                    logger.log_code_and_name_max_lengths(neighbourhood['id'],
-                                                         neighbourhood['name'])
+                    logger.log_code_and_name_max_lengths(nbh['id'],
+                                                         nbh['name'])
 
     if logger:
         logger.print_code_and_name_max_lengths()
@@ -107,7 +107,7 @@ def too_tiny(linear_ring):
         return True
     return False
 
-def get_displayable_polygon(polygon, force_code, neighbourhood_code):
+def get_displayable_polygon(polygon, force_code, nbh_code):
     '''
     Takes a polygon and returns a new polygon, excluding any interior linear
     rings in the original geometry which are too small to be displayed on the map,
@@ -116,12 +116,12 @@ def get_displayable_polygon(polygon, force_code, neighbourhood_code):
     if too_tiny(polygon[0]):
         print 'Outer boundary of polygon is too small to be displayed; ignoring this polygon'
         if logger:
-            logger.log_outer_ring_too_tiny(force_code, neighbourhood_code, polygon[0].coords)
+            logger.log_outer_ring_too_tiny(force_code, nbh_code, polygon[0].coords)
         return None
     rings = [ring for ring in polygon if not too_tiny(ring)]
     return Polygon(*rings)
 
-def get_displayable_polygon_or_multipolygon(geometry, force_code, neighbourhood_code):
+def get_displayable_polygon_or_multipolygon(geometry, force_code, nbh_code):
     '''
     Takes a polygon or multipolygon and returns a new geometry of the same type,
     excluding any interior linear rings in the original geometry which are too
@@ -139,7 +139,7 @@ def get_displayable_polygon_or_multipolygon(geometry, force_code, neighbourhood_
 
     # Discard all False values (here, None or any for which len(p) == 0):
     new_polys = filter(None,
-                       (get_displayable_polygon(p, force_code, neighbourhood_code)
+                       (get_displayable_polygon(p, force_code, nbh_code)
                            for p in shapes))
 
     if len(new_polys) == 1:
@@ -154,7 +154,7 @@ def get_displayable_polygon_or_multipolygon(geometry, force_code, neighbourhood_
 
     if holes_before != holes_after:
         if logger:
-            logger.log_removed_holes(force_code, neighbourhood_code, holes_before, holes_after)
+            logger.log_removed_holes(force_code, nbh_code, holes_before, holes_after)
         print  'Interior rings before:', holes_before
         print  'Interior rings after:', holes_after
     return new_geometry
@@ -236,7 +236,7 @@ def update_or_create_area(code,
                           country,
                           new_generation,
                           current_generation,
-                          neighbourhood_area_type,
+                          nbh_area_type,
                           name_type,
                           name,
                           code_type,
@@ -268,23 +268,23 @@ def update_or_create_area(code,
 
     # Force area polygons are updated separately later with a unionagg() of
     # their children's polygons:
-    if area_type == neighbourhood_area_type:
+    if area_type == nbh_area_type:
         g, valid_before, num_coords = get_valid_polygon(feat)
         g = get_displayable_polygon_or_multipolygon(g, force_code, code)
     else:
         g = None
 
-    if logger and (area_type == neighbourhood_area_type) and (valid_before == False):
+    if logger and (area_type == nbh_area_type) and (valid_before == False):
         # Keep track of neighbourhood geometries which were invalid before
         # transforming:
-        neighbourhood_code = code
-        logger.log_invalid_polygon_before_transformation(num_coords, force_code, neighbourhood_code)
+        nbh_code = code
+        logger.log_invalid_polygon_before_transformation(num_coords, force_code, nbh_code)
 
     if options['commit']:
         m.save()
         m.names.update_or_create({ 'type': name_type }, { 'name': name })
         m.codes.update_or_create({ 'type': code_type }, { 'code': code })
-        if area_type == neighbourhood_area_type and g is not None:
+        if area_type == nbh_area_type and g is not None:
             save_polygons_or_multipolygons(m, g)
 
     # m is an Area instance (which might be unsaved)
@@ -345,7 +345,7 @@ class Command(BaseCommand):
         names_dict = parse_police_names_json(names_path, options)
 
         # These are needed for both forces and neighbourhoods:
-        neighbourhood_area_type = Type.objects.get(code='PON')
+        nbh_area_type = Type.objects.get(code='PON')
         force_area_type = Type.objects.get(code='POF')
 
         england = Country.objects.get(code='E')
@@ -379,7 +379,7 @@ class Command(BaseCommand):
                                           country=country,
                                           new_generation=new_generation,
                                           current_generation=current_generation,
-                                          neighbourhood_area_type=neighbourhood_area_type,
+                                          nbh_area_type=nbh_area_type,
                                           name_type=name_type,
                                           name=force_name,
                                           code_type=code_type,
@@ -390,44 +390,44 @@ class Command(BaseCommand):
 
 
             # Start dealing with neighbourhoods in this force:
-            neighbourhood_kmls_codes_list = []
+            nbh_kmls_codes_list = []
             geometries_to_exclude = []
 
             force_directory = os.path.join(kml_path, force_code)
 
-            for neighbourhood in os.listdir(force_directory):
-                neighbourhood_code = re.sub('\.kml$', '', neighbourhood)
+            for nbh in os.listdir(force_directory):
+                nbh_code = re.sub('\.kml$', '', nbh)
 
                 if logger:
                     # This is passed to logger.log_extra_names later:
-                    neighbourhood_kmls_codes_list.append(neighbourhood_code)
+                    nbh_kmls_codes_list.append(nbh_code)
 
-                if neighbourhood_code in force_names_dict:
-                    neighbourhood_name = force_names_dict[neighbourhood_code]
+                if nbh_code in force_names_dict:
+                    nbh_name = force_names_dict[nbh_code]
                 else:
-                    print "Name for %s in %s not found, using neighbourhood_code instead" % (neighbourhood_code, force_name)
-                    neighbourhood_name = neighbourhood_code
+                    print "Name for %s in %s not found, using neighbourhood code instead" % (nbh_code, force_name)
+                    nbh_name = nbh_code
                     if logger:
-                        logger.log_missing_name(force_code, neighbourhood_code)
-                print "  Importing neighbourhood %s (%s) from %s" % (neighbourhood_name, neighbourhood_code, force_name)
+                        logger.log_missing_name(force_code, nbh_code)
+                print "  Importing neighbourhood %s (%s) from %s" % (nbh_name, nbh_code, force_name)
 
-                ds = DataSource(os.path.join(force_directory, neighbourhood))
+                ds = DataSource(os.path.join(force_directory, nbh))
                 layer = ds[0]
                 if len(layer) > 1:
                     # In fact, it shouldn't be a problem to deal with this, but
                     # it doesn't currently arise, so throw an exception so that
                     # we notice:
-                    raise Exception, "More than one feature in layer for %s (%s)" % (neighbourhood_code, force_name)
+                    raise Exception, "More than one feature in layer for %s (%s)" % (nbh_code, force_name)
                 feat = layer[0]
 
-                neighbourhood, geom = update_or_create_area(code=neighbourhood_code,
-                                          area_type=neighbourhood_area_type,
+                nbh, geom = update_or_create_area(code=nbh_code,
+                                          area_type=nbh_area_type,
                                           country=country,
                                           new_generation=new_generation,
                                           current_generation=current_generation,
-                                          neighbourhood_area_type=neighbourhood_area_type,
+                                          nbh_area_type=nbh_area_type,
                                           name_type=name_type,
-                                          name=neighbourhood_name,
+                                          name=nbh_name,
                                           code_type=code_type,
                                           force_code=force_code,
                                           options=options,
@@ -441,15 +441,15 @@ class Command(BaseCommand):
                     # track of them to exclude later:
                     # (I think there shouldn't be any invalid polygons by now,
                     # but keep this in anyway for now.)
-                    for geometry in neighbourhood.polygons.all():
+                    for geometry in nbh.polygons.all():
                         if not geometry.polygon.valid:
-                            log_invalid_polygon_to_exclude(geometry.id, force_code, neighbourhood_code)
+                            log_invalid_polygon_to_exclude(geometry.id, force_code, nbh_code)
                             geometries_to_exclude.append(geometry.id)
                         else:
                             continue
 
             if logger:
-                logger.log_extra_names(force_code, neighbourhood_kmls_codes_list, force_names_dict)
+                logger.log_extra_names(force_code, nbh_kmls_codes_list, force_names_dict)
 
             # unionagg() and collect() are GeoQueryset methods, so can't be used
             # if the polygons haven't been saved to the database:
