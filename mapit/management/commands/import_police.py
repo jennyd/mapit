@@ -454,31 +454,34 @@ class Command(BaseCommand):
                 # staffordshire, sussex, hampshire); it returns None for these.
                 agg_methods = ('unionagg', 'simplified collect')
                 for method in agg_methods:
-                    try:
-                        if method == 'unionagg':
-                            print '  Trying unionagg()...'
-                            force_geometry = valid_polys.unionagg()
-                        elif method == 'simplified collect':
-                            print '  Trying collect().simplify()...'
-                            force_geometry = valid_polys.collect().simplify()
-                        else:
-                             raise Exception, "Unknown method: %s" % method
-                        valid = force_geometry.valid
-                        print '    force_geometry.valid:', valid
-                        valid_reason = force_geometry.valid_reason
-                    except AttributeError:
+                    if method == 'unionagg':
+                        print '  Trying unionagg()...'
+                        force_geometry = valid_polys.unionagg()
+                    elif method == 'simplified collect':
+                        print '  Trying collect().simplify()...'
+                        force_geometry = valid_polys.collect().simplify()
+                    else:
+                         raise Exception, "Unknown method: %s" % method
+                    # Log details of the result of each method:
+                    if force_geometry is None:
                         print '    %s() for %s returns None' % (method, force_name)
                         valid = False
                         valid_reason = 'Geometry is None'
+                    else:
+                        valid = force_geometry.valid
+                        print '    force_geometry.valid:', valid
+                        valid_reason = force_geometry.valid_reason
                     if options['debug_data']:
                         logger.log_force_geometry_creation_attempt(force_code, method, valid, valid_reason)
-                    if valid == True:
+                    if valid:
                         # Now we have a valid geometry to save:
                         break
-                print force_geometry.geom_type
-                force_geometry = get_displayable_polygon_or_multipolygon(force_geometry, force_code, 'force')
-                # Assuming that there is still some kind of force_geometry:
-                save_polygons_or_multipolygons(force, force_geometry)
+                if not force_geometry:
+                    raise Exception, 'Failed to create a force geometry by any method for %s' % force_code
+                displayable_force_geometry = get_displayable_polygon_or_multipolygon(force_geometry, force_code, 'force')
+                if not displayable_force_geometry:
+                    raise Exception, 'Failed to create a displayable force geometry for %s' % force_code
+                save_polygons_or_multipolygons(force, displayable_force_geometry)
             else:
                 print '(not trying to create force geometries as --commit not specified)'
 
