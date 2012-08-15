@@ -100,13 +100,14 @@ class PoliceLogger(object):
     def print_and_save_logged_data(self, save_path):
         self.print_code_and_name_max_lengths()
 
-        # Sort invalid_before by num_coords to find the simplest initially
-        # invalid polygon for testing purposes:
-        simplest = min(self.invalid_before)
-        print 'Simplest polygon which was invalid straight after loading it from the KML:'
-        print '  force code:', simplest[1]
-        print '  neighbourhood code:', simplest[2]
-        print '  number of points:', simplest[0]
+        if self.invalid_before:
+            # Sort invalid_before by num_coords to find the simplest initially
+            # invalid polygon for testing purposes:
+            simplest = min(self.invalid_before)
+            print 'Simplest polygon which was invalid straight after loading it from the KML:'
+            print '  force code:', simplest[1]
+            print '  neighbourhood code:', simplest[2]
+            print '  number of points:', simplest[0]
 
         data_to_process = (
             {'basename': 'invalid_before',
