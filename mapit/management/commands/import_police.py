@@ -269,6 +269,8 @@ def update_or_create_area(code,
     if area_type == neighbourhood_area_type:
         g, valid_before, num_coords = get_valid_polygon(feat)
         g = get_displayable_polygon_or_multipolygon(g, force_code, code)
+    else:
+        g = None
 
     if options['debug_data'] and area_type == neighbourhood_area_type and valid_before == False:
         # Keep track of neighbourhood geometries which were invalid before
