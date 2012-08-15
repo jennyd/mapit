@@ -19,7 +19,7 @@ from mapit.models import Area, Geometry, Generation, Country, Type, CodeType, Na
 from police_utils import PoliceLogger
 
 
-logger = PoliceLogger()
+logger = None
 
 
 def parse_police_names_json(names_path, options):
@@ -61,7 +61,7 @@ def parse_police_names_json(names_path, options):
             if force['id'] in names_dict:
                 raise Exception, "Force id %s found twice in JSON" % force['id']
             names_dict[force['id']] = (force['name'], {})
-            if options['debug_data']:
+            if logger:
                 logger.log_code_and_name_max_lengths(force['id'],
                                                      force['name'])
 
@@ -74,11 +74,11 @@ def parse_police_names_json(names_path, options):
                 if neighbourhood['id'] in names_dict[force_id][1]:
                     raise Exception, "Neighbourhood id %s found twice in force %s in JSON" % (neighbourhood['id'], force_id)
                 names_dict[force_id][1][neighbourhood['id']] = neighbourhood['name']
-                if options['debug_data']:
+                if logger:
                     logger.log_code_and_name_max_lengths(neighbourhood['id'],
                                                          neighbourhood['name'])
 
-    if options['debug_data']:
+    if logger:
         logger.print_code_and_name_max_lengths()
 
     return names_dict
@@ -115,7 +115,8 @@ def get_displayable_polygon(polygon, force_code, neighbourhood_code):
     '''
     if too_tiny(polygon[0]):
         print 'Outer boundary of polygon is too small to be displayed; ignoring this polygon'
-        logger.log_outer_ring_too_tiny(force_code, neighbourhood_code, polygon[0].coords)
+        if logger:
+            logger.log_outer_ring_too_tiny(force_code, neighbourhood_code, polygon[0].coords)
         return None
     rings = [ring for ring in polygon if not too_tiny(ring)]
     return Polygon(*rings)
@@ -152,7 +153,8 @@ def get_displayable_polygon_or_multipolygon(geometry, force_code, neighbourhood_
         holes_after = '(no geometry to save)'
 
     if holes_before != holes_after:
-        logger.log_removed_holes(force_code, neighbourhood_code, holes_before, holes_after)
+        if logger:
+            logger.log_removed_holes(force_code, neighbourhood_code, holes_before, holes_after)
         print  'Interior rings before:', holes_before
         print  'Interior rings after:', holes_after
     return new_geometry
@@ -272,7 +274,7 @@ def update_or_create_area(code,
     else:
         g = None
 
-    if options['debug_data'] and area_type == neighbourhood_area_type and valid_before == False:
+    if logger and (area_type == neighbourhood_area_type) and (valid_before == False):
         # Keep track of neighbourhood geometries which were invalid before
         # transforming:
         neighbourhood_code = code
@@ -319,6 +321,11 @@ class Command(BaseCommand):
             import doctest
             doctest.testmod(sys.modules[__name__])
             return
+
+        if options['debug_data']:
+            global logger
+            logger = PoliceLogger()
+
 
         current_generation = Generation.objects.current()
         new_generation = Generation.objects.new()
@@ -391,7 +398,7 @@ class Command(BaseCommand):
             for neighbourhood in os.listdir(force_directory):
                 neighbourhood_code = re.sub('\.kml$', '', neighbourhood)
 
-                if options['debug_data']:
+                if logger:
                     # This is passed to logger.log_extra_names later:
                     neighbourhood_kmls_codes_list.append(neighbourhood_code)
 
@@ -400,7 +407,7 @@ class Command(BaseCommand):
                 else:
                     print "Name for %s in %s not found, using neighbourhood_code instead" % (neighbourhood_code, force_name)
                     neighbourhood_name = neighbourhood_code
-                    if options['debug_data']:
+                    if logger:
                         logger.log_missing_name(force_code, neighbourhood_code)
                 print "  Importing neighbourhood %s (%s) from %s" % (neighbourhood_name, neighbourhood_code, force_name)
 
@@ -441,7 +448,7 @@ class Command(BaseCommand):
                         else:
                             continue
 
-            if options['debug_data']:
+            if logger:
                 logger.log_extra_names(force_code, neighbourhood_kmls_codes_list, force_names_dict)
 
             # unionagg() and collect() are GeoQueryset methods, so can't be used
@@ -473,7 +480,7 @@ class Command(BaseCommand):
                         valid = force_geometry.valid
                         print '    force_geometry.valid:', valid
                         valid_reason = force_geometry.valid_reason
-                    if options['debug_data']:
+                    if logger:
                         logger.log_force_geometry_creation_attempt(force_code, method, valid, valid_reason)
                     if valid:
                         # Now we have a valid geometry to save:
@@ -488,7 +495,7 @@ class Command(BaseCommand):
                 print '(not trying to create force geometries as --commit not specified)'
 
 
-        if options['debug_data']:
+        if logger:
             # Finally, print and save the logged data about problems with the
             # datasets:
             date = datetime.datetime.today()
