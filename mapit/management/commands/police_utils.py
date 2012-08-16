@@ -113,7 +113,7 @@ class PoliceLogger(object):
             {'basename': 'invalid_before',
              'message': '%d features invalid before transformation' % len(self.invalid_before)},
             {'basename': 'invalid_polygons',
-             'message': "%d neighbourhood polygons are invalid and were excluded from their forces' polygons" % len(self.invalid_polygons.keys())},
+             'message': "%d neighbourhood polygons are still invalid and were excluded from their forces' polygons" % len(self.invalid_polygons.keys())},
             {'basename': 'outer_ring_too_tiny',
              'message': "%d polygons were too small to be displayed on the map and were not saved" % len(self.outer_ring_too_tiny)},
             {'basename': 'removed_holes',
