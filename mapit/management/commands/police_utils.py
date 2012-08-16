@@ -14,7 +14,7 @@ class PoliceLogger(object):
         self.outer_ring_too_tiny = [('force_code', 'nbh_code', 'ring_coords')]
         self.removed_holes = [('force_code', 'nbh_code', 'holes_before', 'holes_after')]
         self.missing_names = [('force_code', 'nbh_code')]
-        self.extra_names = [('force_code', 'nbh_code', 'neighbourhood name')]
+        self.extra_names = [('force_code', 'nbh_code', 'nbh_name')]
         self.force_geometry_creation_attempts = [('force_code', 'method', 'successful', 'valid_reason')]
 
     def log_code_and_name_max_lengths(self, code, name):
