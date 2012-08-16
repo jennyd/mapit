@@ -113,7 +113,7 @@ def too_tiny(linear_ring):
     # This must be the same tolerance as area.html uses for displaying maps:
     tolerance = 0.0001
     new_srid = 4326
-    # The Polygon doesn't implicitly use the linear ring's SRID:
+    # GEOSGeometry needs the SRID to be set explicitly:
     original_poly = Polygon(linear_ring, srid=linear_ring.srid)
     transformed_poly = original_poly.transform(new_srid, clone=True)
     simplified_poly = transformed_poly.simplify(tolerance=tolerance)
