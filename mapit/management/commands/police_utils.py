@@ -10,6 +10,7 @@ class PoliceLogger(object):
         self.name_max_length = 0
         self.invalid_before = [('num_coords', 'force_code', 'nbh_code')]
         self.invalid_polygons = {'geometry_id': ('force_code', 'nbh_code')}
+        self.nbh_polygons_not_updated = [('force_code', 'nbh_code')]
         self.outer_ring_too_tiny = [('force_code', 'nbh_code', 'ring_coords')]
         self.removed_holes = [('force_code', 'nbh_code', 'holes_before', 'holes_after')]
         self.missing_names = [('force_code', 'nbh_code')]
@@ -54,6 +55,9 @@ class PoliceLogger(object):
         # as the key, which is reasonable at the moment since keys() is used to
         # filter a queryset:
         self.invalid_polygons[geometry_id] = (force_code, nbh_code)
+
+    def log_nbh_polygons_not_updated(self, force_code, nbh_code):
+        self.nbh_polygons_not_updated.append((force_code, nbh_code))
 
     def log_outer_ring_too_tiny(self, force_code, nbh_code, ring_coords):
         '''Store details of geometries in which the outer boundary ring of a
@@ -114,6 +118,8 @@ class PoliceLogger(object):
              'message': '%d features invalid before transformation' % (len(self.invalid_before) - 1)},
             {'basename': 'invalid_polygons',
              'message': "%d neighbourhood polygons are still invalid and were excluded from their forces' polygons" % (len(self.invalid_polygons.keys()) - 1)},
+            {'basename': 'nbh_polygons_not_updated',
+             'message': "Polygons for %d neighbourhoods could not be updated" % (len(self.nbh_polygons_not_updated) - 1)},
             {'basename': 'outer_ring_too_tiny',
              'message': "%d polygons were too small to be displayed on the map and were not saved" % (len(self.outer_ring_too_tiny) - 1)},
             {'basename': 'removed_holes',

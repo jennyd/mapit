@@ -254,19 +254,24 @@ def update_or_create_area(code,
         raise Exception, "Area %s found, but not in current generation %s" % (m, current_generation)
     m.generation_high = new_generation
 
-    # Force area polygons are updated separately later with a unionagg() of
-    # their children's polygons:
     if area_type == nbh_area_type:
         g, valid_before, num_coords = get_valid_polygon(feat)
         g = get_displayable_polygon_or_multipolygon(g, force_code, code)
+        if logger:
+            nbh_code = code
+            if valid_before == False:
+                # Keep track of neighbourhood geometries which were invalid before
+                # transforming:
+                logger.log_invalid_polygon_before_transformation(num_coords, force_code, nbh_code)
+            if not g:
+                # Any existing polygons for this neighbourhood will be left in
+                # the database, since there are no new ones to replace them with
+                logger.log_nbh_polygons_not_updated(force_code, nbh_code)
     else:
+        # Force area polygons are updated separately later by aggregating
+        # their children's polygons:
         g = None
 
-    if logger and (area_type == nbh_area_type) and (valid_before == False):
-        # Keep track of neighbourhood geometries which were invalid before
-        # transforming:
-        nbh_code = code
-        logger.log_invalid_polygon_before_transformation(num_coords, force_code, nbh_code)
 
     if options['commit']:
         m.save()
