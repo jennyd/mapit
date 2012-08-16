@@ -202,13 +202,15 @@ def get_valid_polygon(feat):
 
 def save_polygons_or_multipolygons(area, geometry):
     """
-    This takes an Area and a GEOSGeometry object, and saves the geometry (as one
-    or more Geometry objects) to area.polygons.
+    This takes an Area and a GEOSGeometry object, saves the geometry (as one
+    or more Geometry objects) to area.polygons, and returns a list of tuples of
+    Polygons and their Geometry IDs.
     """
     # This is very similar to utils.save_polygons, but expects a GEOSGeometry
     # instead of an OGRGeometry.
     # XXX This doesn't check options['commit'], but should obviously only be
     # called when we do want to commit.
+
     if geometry.geom_type == 'MultiPolygon':
         shapes = geometry
     elif geometry.geom_type == 'Polygon':
@@ -216,8 +218,11 @@ def save_polygons_or_multipolygons(area, geometry):
     else:
         raise Exception, "geometry for %s is neither a Polygon nor a MultiPolygon" % area
     area.polygons.all().delete()
+    new_geometries = []
     for polygon in shapes:
         new_polygon = area.polygons.create(polygon=polygon.wkt)
+        new_geometries.append((new_polygon.polygon, new_polygon.id))
+    return new_geometries
 
 def update_or_create_area(code,
                           area_type,
@@ -254,35 +259,65 @@ def update_or_create_area(code,
         raise Exception, "Area %s found, but not in current generation %s" % (m, current_generation)
     m.generation_high = new_generation
 
+    new_geometries = []
     if area_type == nbh_area_type:
         g, valid_before, num_coords = get_valid_polygon(feat)
         g = get_displayable_polygon_or_multipolygon(g, force_code, code)
         if logger:
-            nbh_code = code
             if valid_before == False:
                 # Keep track of neighbourhood geometries which were invalid before
                 # transforming:
-                logger.log_invalid_polygon_before_transformation(num_coords, force_code, nbh_code)
+                logger.log_invalid_polygon_before_transformation(num_coords,
+                                                                 force_code,
+                                                                 code)
             if not g:
-                # Any existing polygons for this neighbourhood will be left in
-                # the database, since there are no new ones to replace them with
-                logger.log_nbh_polygons_not_updated(force_code, nbh_code)
+                # There are no new polygons for this neighbourhood, so any
+                # existing ones will be left in the database, since there is
+                # nothing to replace them with:
+                logger.log_nbh_polygons_not_updated(force_code, code)
+        if g and (not options['commit']):
+            # If we have a geometry and are committing, new_geometries will
+            # be made later.
+            if g.geom_type == 'MultiPolygon':
+                shapes = g
+            elif g.geom_type == 'Polygon':
+                shapes = [g]
+            # We don't have a geometry ID because we're not committing:
+            new_geometries = [(polygon, None) for polygon in shapes]
+
     else:
         # Force area polygons are updated separately later by aggregating
         # their children's polygons:
         g = None
-
 
     if options['commit']:
         m.save()
         m.names.update_or_create({ 'type': name_type }, { 'name': name })
         m.codes.update_or_create({ 'type': code_type }, { 'code': code })
         if area_type == nbh_area_type and g is not None:
-            save_polygons_or_multipolygons(m, g)
+            new_geometries = save_polygons_or_multipolygons(m, g)
 
-    # m is an Area instance (which might be unsaved)
-    # g is a GEOS Polygon or MultiPolygon
-    return (m, g)
+    if new_geometries:
+        num_polys = len(new_geometries)
+        for tup in new_geometries:
+            polygon, geometry_id = tup
+            if polygon.valid:
+                continue
+            # unionagg() fails when invalid polygons are included,
+            # so keep track of them to exclude later:
+            if options['commit']:
+                geometries_to_exclude.append(geometry_id)
+            if logger:
+                # geometry_id will be None if we're not committing,
+                # so log the total number of polygons for this
+                # neighbourhood too:
+                logger.log_still_invalid_polygon(force_code,
+                                                 nbh_code,
+                                                 geometry_id,
+                                                 num_polys)
+
+    # m is an Area (which might be unsaved)
+    return m
 
 
 class Command(BaseCommand):
@@ -365,7 +400,7 @@ class Command(BaseCommand):
             country = wales if (force_code in welsh_forces) else england
 
             # Create the force, without any polygons for now:
-            force, geom = update_or_create_area(code=force_code,
+            force = update_or_create_area(code=force_code,
                                           area_type=force_area_type,
                                           country=country,
                                           new_generation=new_generation,
@@ -411,33 +446,21 @@ class Command(BaseCommand):
                     raise Exception, "More than one feature in layer for %s (%s)" % (nbh_code, force_name)
                 feat = layer[0]
 
-                nbh, geom = update_or_create_area(code=nbh_code,
-                                          area_type=nbh_area_type,
-                                          country=country,
-                                          new_generation=new_generation,
-                                          current_generation=current_generation,
-                                          nbh_area_type=nbh_area_type,
-                                          name_type=name_type,
-                                          name=nbh_name,
-                                          code_type=code_type,
-                                          force_code=force_code,
-                                          options=options,
-                                          feat=feat,
-                                          # parent_area needs to be set here,
-                                          # rather than using find_parents.py:
-                                          parent_area=force)
-
-                if options['commit']:
-                    # unionagg() fails when invalid polygons are included, so keep
-                    # track of them to exclude later:
-                    # (I think there shouldn't be any invalid polygons by now,
-                    # but keep this in anyway for now.)
-                    for geometry in nbh.polygons.all():
-                        if not geometry.polygon.valid:
-                            logger.log_invalid_polygon_to_exclude(geometry.id, force_code, nbh_code)
-                            geometries_to_exclude.append(geometry.id)
-                        else:
-                            continue
+                update_or_create_area(code=nbh_code,
+                                      area_type=nbh_area_type,
+                                      country=country,
+                                      new_generation=new_generation,
+                                      current_generation=current_generation,
+                                      nbh_area_type=nbh_area_type,
+                                      name_type=name_type,
+                                      name=nbh_name,
+                                      code_type=code_type,
+                                      force_code=force_code,
+                                      options=options,
+                                      feat=feat,
+                                      # parent_area needs to be set here,
+                                      # rather than using find_parents.py:
+                                      parent_area=force)
 
             if logger:
                 logger.log_extra_names(force_code, nbh_kmls_codes_list, force_names_dict)

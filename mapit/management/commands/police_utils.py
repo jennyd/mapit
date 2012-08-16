@@ -9,7 +9,7 @@ class PoliceLogger(object):
         self.code_max_length = 0
         self.name_max_length = 0
         self.invalid_before = [('num_coords', 'force_code', 'nbh_code')]
-        self.invalid_polygons = {'geometry_id': ('force_code', 'nbh_code')}
+        self.invalid_polygons = [('force_code', 'nbh_code', 'geometry_id', 'num_polys')]
         self.nbh_polygons_not_updated = [('force_code', 'nbh_code')]
         self.outer_ring_too_tiny = [('force_code', 'nbh_code', 'ring_coords')]
         self.removed_holes = [('force_code', 'nbh_code', 'holes_before', 'holes_after')]
@@ -46,15 +46,12 @@ class PoliceLogger(object):
         '''
         self.invalid_before.append((num_coords, force_code, nbh_code))
 
-    def log_invalid_polygon_to_exclude(self, geometry_id, force_code, nbh_code):
+    def log_still_invalid_polygon(self, force_code, nbh_code, geometry_id, num_polys):
         '''Store details of a neighbourhood polygon which is still invalid after
-        transformation and simplification, and therefore needs to be excluded
+        transformation and simplification, and therefore has been excluded
         from the queryset to be aggregated for the force geometry.
         '''
-        # This requires the geometry to be saved and have an id, and uses the id
-        # as the key, which is reasonable at the moment since keys() is used to
-        # filter a queryset:
-        self.invalid_polygons[geometry_id] = (force_code, nbh_code)
+        self.invalid_polygons.append((force_code, nbh_code, geometry_id, num_polys))
 
     def log_nbh_polygons_not_updated(self, force_code, nbh_code):
         self.nbh_polygons_not_updated.append((force_code, nbh_code))
@@ -118,7 +115,7 @@ class PoliceLogger(object):
             {'basename': 'invalid_before',
              'message': '%d features invalid before transformation' % (len(self.invalid_before) - 1)},
             {'basename': 'invalid_polygons',
-             'message': "%d neighbourhood polygons are still invalid and were excluded from their forces' polygons" % (len(self.invalid_polygons.keys()) - 1)},
+             'message': "%d neighbourhood polygons are still invalid and were excluded from their forces' polygons" % (len(self.invalid_polygons) - 1)},
             {'basename': 'nbh_polygons_not_updated',
              'message': "Polygons for %d neighbourhoods could not be updated" % (len(self.nbh_polygons_not_updated) - 1)},
             {'basename': 'outer_ring_too_tiny',
