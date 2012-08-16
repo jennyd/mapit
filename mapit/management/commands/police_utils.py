@@ -98,11 +98,11 @@ class PoliceLogger(object):
 
     def save_data_to_json(self, save_path, basename, data):
         with open(os.path.join(save_path, basename+'.json'), 'w') as f:
-#            print '  Saving %s.json' % basename
             json.dump(data, f, indent=4)
 
     def print_and_save_logged_data(self, save_path):
         self.print_code_and_name_max_lengths()
+        print ''
 
         if self.invalid_before:
             # Sort invalid_before by num_coords to find the simplest initially
@@ -112,6 +112,7 @@ class PoliceLogger(object):
             print '  force code:', simplest[1]
             print '  neighbourhood code:', simplest[2]
             print '  number of points:', simplest[0]
+            print ''
 
         data_to_process = (
             {'basename': 'invalid_before',
@@ -132,11 +133,12 @@ class PoliceLogger(object):
              'message': 'A total of %d attempts were made to create force geometries' % (len(self.force_geometry_creation_attempts) - 1)}
         )
 
+        print 'Logged data is saved in %s/' % save_path
         for i in data_to_process:
             basename = i['basename']
             message = i['message']
             stored_data = getattr(self, basename)
             print message
-            print '    (see %s/%s.json)' % (save_path, basename)
+            print '    (see %s.json)' % basename
             self.save_data_to_json(save_path, basename, stored_data)
 
