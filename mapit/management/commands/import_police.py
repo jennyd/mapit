@@ -470,47 +470,20 @@ class Command(BaseCommand):
             # to create a force geometry if the polygons haven't been saved to
             # the database:
             if not options['commit']:
+                print '(not trying to create force geometries as --commit not specified)'
                 continue
 
             # Create a force area geometry from its neighbourhood children,
             # excluding any polygons which are still invalid:
             valid_polys = Geometry.objects.filter(area__parent_area_id=force.id).exclude(id__in=geometries_to_exclude)
             print 'Trying to create a force geometry for %s' % force_name
-            # unionagg() fails on some forces in the May 2012 dataset despite
-            # all their children's polygons being valid (gloucestershire,
-            # staffordshire, sussex, hampshire); it returns None for these.
-            agg_methods = ('unionagg', 'simplified collect')
-            for method in agg_methods:
-                if method == 'unionagg':
-                    print '  Trying unionagg()...'
-                    force_geometry = valid_polys.unionagg()
-                elif method == 'simplified collect':
-                    print '  Trying collect().simplify()...'
-                    force_geometry = valid_polys.collect().simplify()
-                else:
-                     raise Exception, "Unknown method: %s" % method
-                # Log details of the result of each method:
-                if force_geometry is None:
-                    print '    %s() for %s returns None' % (method, force_name)
-                    valid = False
-                    valid_reason = 'Geometry is None'
-                else:
-                    valid = force_geometry.valid
-                    print '    force_geometry.valid:', valid
-                    valid_reason = force_geometry.valid_reason
-                if logger:
-                    logger.log_force_geometry_creation_attempt(force_code, method, valid, valid_reason)
-                if valid:
-                    # Now we have a valid geometry to save:
-                    break
+            force_geometry = valid_polys.unionagg()
             if not force_geometry:
-                raise Exception, 'Failed to create a force geometry by any method for %s' % force_name
+                raise Exception, 'Failed to create a force geometry for %s' % force_name
             displayable_force_geometry = get_displayable_polygon_or_multipolygon(force_geometry, force_code, 'force')
             if not displayable_force_geometry:
                 raise Exception, 'Failed to create a displayable force geometry for %s' % force_name
             save_polygons_or_multipolygons(force, displayable_force_geometry)
-        else:
-            print '(not trying to create force geometries as --commit not specified)'
 
 
         if logger:

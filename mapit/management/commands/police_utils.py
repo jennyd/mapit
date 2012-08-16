@@ -15,7 +15,6 @@ class PoliceLogger(object):
         self.removed_holes = [('force_code', 'nbh_code', 'holes_before', 'holes_after')]
         self.missing_names = [('force_code', 'nbh_code')]
         self.extra_names = [('force_code', 'nbh_code', 'nbh_name')]
-        self.force_geometry_creation_attempts = [('force_code', 'method', 'successful', 'valid_reason')]
 
     def log_code_and_name_max_lengths(self, code, name):
         '''Find the maximum lengths of values to be saved in Code.code and
@@ -86,13 +85,6 @@ class PoliceLogger(object):
                                      # neighbourhood name:
                                      force_names_dict[nbh_code]))
 
-    def log_force_geometry_creation_attempt(self, force_code, method, successful, valid_reason):
-        '''Store a force code, the aggregation method attempted, whether it
-        was successful, and, if a geometry was created but was invalid, the
-        reason for it being invalid.
-        '''
-        self.force_geometry_creation_attempts.append((force_code, method, successful, valid_reason))
-
     def save_data_to_json(self, save_path, basename, data):
         with open(os.path.join(save_path, basename+'.json'), 'w') as f:
             json.dump(data, f, indent=4)
@@ -126,8 +118,6 @@ class PoliceLogger(object):
              'message': 'Names were missing for %d neighbourhoods' % (len(self.missing_names) - 1)},
             {'basename': 'extra_names',
              'message': '%d extra neighbourhood names were found' % (len(self.extra_names) - 1)},
-            {'basename': 'force_geometry_creation_attempts',
-             'message': 'A total of %d attempts were made to create force geometries' % (len(self.force_geometry_creation_attempts) - 1)}
         )
 
         print 'Logged data is saved in %s/' % save_path
