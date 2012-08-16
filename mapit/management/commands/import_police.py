@@ -431,7 +431,7 @@ class Command(BaseCommand):
                     # but keep this in anyway for now.)
                     for geometry in nbh.polygons.all():
                         if not geometry.polygon.valid:
-                            log_invalid_polygon_to_exclude(geometry.id, force_code, nbh_code)
+                            logger.log_invalid_polygon_to_exclude(geometry.id, force_code, nbh_code)
                             geometries_to_exclude.append(geometry.id)
                         else:
                             continue
