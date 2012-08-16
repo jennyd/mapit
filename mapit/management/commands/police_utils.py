@@ -8,13 +8,13 @@ class PoliceLogger(object):
     def __init__(self):
         self.code_max_length = 0
         self.name_max_length = 0
-        self.invalid_before = []
-        self.invalid_polygons = {}
-        self.outer_ring_too_tiny = []
-        self.removed_holes = []
-        self.missing_names = []
-        self.extra_names = []
-        self.force_geometry_creation_attempts = []
+        self.invalid_before = [('num_coords', 'force_code', 'nbh_code')]
+        self.invalid_polygons = {'geometry_id': ('force_code', 'nbh_code')}
+        self.outer_ring_too_tiny = [('force_code', 'nbh_code', 'ring_coords')]
+        self.removed_holes = [('force_code', 'nbh_code', 'holes_before', 'holes_after')]
+        self.missing_names = [('force_code', 'nbh_code')]
+        self.extra_names = [('force_code', 'nbh_code', 'neighbourhood name')]
+        self.force_geometry_creation_attempts = [('force_code', 'method', 'successful', 'valid_reason')]
 
     def log_code_and_name_max_lengths(self, code, name):
         '''Find the maximum lengths of values to be saved in Code.code and
@@ -103,7 +103,7 @@ class PoliceLogger(object):
         if self.invalid_before:
             # Sort invalid_before by num_coords to find the simplest initially
             # invalid polygon for testing purposes:
-            simplest = min(self.invalid_before)
+            simplest = min(self.invalid_before[1:])
             print 'Simplest polygon which was invalid straight after loading it from the KML:'
             print '  force code:', simplest[1]
             print '  neighbourhood code:', simplest[2]
@@ -111,19 +111,19 @@ class PoliceLogger(object):
 
         data_to_process = (
             {'basename': 'invalid_before',
-             'message': '%d features invalid before transformation' % len(self.invalid_before)},
+             'message': '%d features invalid before transformation' % (len(self.invalid_before) - 1)},
             {'basename': 'invalid_polygons',
-             'message': "%d neighbourhood polygons are still invalid and were excluded from their forces' polygons" % len(self.invalid_polygons.keys())},
+             'message': "%d neighbourhood polygons are still invalid and were excluded from their forces' polygons" % (len(self.invalid_polygons.keys()) - 1)},
             {'basename': 'outer_ring_too_tiny',
-             'message': "%d polygons were too small to be displayed on the map and were not saved" % len(self.outer_ring_too_tiny)},
+             'message': "%d polygons were too small to be displayed on the map and were not saved" % (len(self.outer_ring_too_tiny) - 1)},
             {'basename': 'removed_holes',
-             'message': "%d polygons contained holes which were too small to be displayed on the map and were removed" % len(self.removed_holes)},
+             'message': "%d polygons contained holes which were too small to be displayed on the map and were removed" % (len(self.removed_holes) - 1)},
             {'basename': 'missing_names',
-             'message': 'Names were missing for %d neighbourhoods' % len(self.missing_names)},
+             'message': 'Names were missing for %d neighbourhoods' % (len(self.missing_names) - 1)},
             {'basename': 'extra_names',
-             'message': '%d extra neighbourhood names were found' % len(self.extra_names)},
+             'message': '%d extra neighbourhood names were found' % (len(self.extra_names) - 1)},
             {'basename': 'force_geometry_creation_attempts',
-             'message': 'A total of %d attempts were made to create force geometries' % len(self.force_geometry_creation_attempts)}
+             'message': 'A total of %d attempts were made to create force geometries' % (len(self.force_geometry_creation_attempts) - 1)}
         )
 
         for i in data_to_process:
