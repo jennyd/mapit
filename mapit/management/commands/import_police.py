@@ -83,6 +83,20 @@ def parse_police_names_json(names_path, options):
 
     return names_dict
 
+def make_iterable_shapes(geometry):
+    '''
+    Takes a GEOS Polygon or MultiPolygon, and returns an iterable whose
+    elements are GEOS Polygons.
+    '''
+    input_type = geometry.geom_type
+    if input_type == 'MultiPolygon':
+        shapes = geometry
+    elif input_type == 'Polygon':
+        shapes = [geometry]
+    else:
+        raise Exception, "Geometry is neither a GEOS Polygon nor a GEOS MultiPolygon"
+    return shapes
+
 def too_tiny(linear_ring):
     '''
     Takes a linear ring, puts it in a polygon, transforms and simplifies it as
@@ -127,15 +141,8 @@ def get_displayable_polygon_or_multipolygon(geometry, force_code, nbh_code):
     excluding any interior linear rings in the original geometry which are too
     small to be displayed on the map.
     '''
-    input_type = geometry.geom_type
-    if input_type == 'Polygon':
-        shapes = [geometry]
-        holes_before = geometry.num_interior_rings
-    elif input_type == 'MultiPolygon':
-        shapes = geometry
-        holes_before = sum(geometry.num_interior_rings for geometry in shapes)
-    else:
-        raise Exception, 'get_displayable_polygon_or_multipolygon expects a polygon or a multipolygon'
+    shapes = make_iterable_shapes(geometry)
+    holes_before = sum(geometry.num_interior_rings for geometry in shapes)
 
     # Discard all False values (here, None or any for which len(p) == 0):
     new_polys = filter(None,
@@ -211,12 +218,7 @@ def save_polygons_or_multipolygons(area, geometry):
     # This doesn't check options['commit'], but should obviously only be
     # called when we do want to commit.
 
-    if geometry.geom_type == 'MultiPolygon':
-        shapes = geometry
-    elif geometry.geom_type == 'Polygon':
-        shapes = [geometry]
-    else:
-        raise Exception, "geometry for %s is neither a Polygon nor a MultiPolygon" % area
+    shapes = make_iterable_shapes(geometry)
     area.polygons.all().delete()
     new_geometries = []
     for polygon in shapes:
@@ -278,10 +280,7 @@ def update_or_create_area(code,
         if g and (not options['commit']):
             # If we have a geometry and are committing, new_geometries will
             # be made later.
-            if g.geom_type == 'MultiPolygon':
-                shapes = g
-            elif g.geom_type == 'Polygon':
-                shapes = [g]
+            shapes = make_iterable_shapes(g)
             # We don't have a geometry ID because we're not committing:
             new_geometries = [(polygon, None) for polygon in shapes]
 
