@@ -356,19 +356,13 @@ class Command(BaseCommand):
         welsh_forces = ('dyfed-powys', 'gwent', 'north-wales', 'south-wales')
 
         for force_code in kml_forces_list:
-
             if force_code in names_dict:
                 force_name, force_names_dict = names_dict[force_code]
             else:
                 raise Exception, "Name for force %s not found" % force_code
             print "Importing police force %s" % force_name
 
-            if force_code in welsh_forces:
-                country = wales
-            else:
-                country = england
-
-#            country = wales if (force_code in welsh_forces) else england
+            country = wales if (force_code in welsh_forces) else england
 
             # Create the force, without any polygons for now:
             force, geom = update_or_create_area(code=force_code,
