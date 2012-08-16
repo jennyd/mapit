@@ -53,6 +53,10 @@ class PoliceLogger(object):
         self.invalid_polygons.append((force_code, nbh_code, geometry_id, num_polys))
 
     def log_nbh_polygons_not_updated(self, force_code, nbh_code):
+        '''Store details of neighbourhoods for which no new polygons could be
+        created. Any previously existing polygons for these neighbourhoods
+        were left in place and not deleted.
+        '''
         self.nbh_polygons_not_updated.append((force_code, nbh_code))
 
     def log_outer_ring_too_tiny(self, force_code, nbh_code, ring_coords):
