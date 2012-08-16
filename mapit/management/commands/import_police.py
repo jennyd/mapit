@@ -331,8 +331,12 @@ class Command(BaseCommand):
 
         kml_forces_list = [force for force in os.listdir(kml_path) if force not in ignored]
 
-        # names_path should contain an extra file for the names of all forces:
-        if len(kml_forces_list) + 1 != len(os.listdir(names_path)):
+        # names_path should contain an extra file for the names of all forces.
+        # Data for neighbourhoods in Northern Ireland have also recently been
+        # added to the API (between 31/07/2012 and 16/08/2012) but no KMLs are
+        # available yet, so ignore them for now. log_extra_names doesn't log
+        # these names either.
+        if len(kml_forces_list) + 2 != len(os.listdir(names_path)):
             raise Exception, "The two datasets contain different numbers of forces!"
 
         names_dict = parse_police_names_json(names_path, options)
