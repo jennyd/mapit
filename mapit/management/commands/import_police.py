@@ -208,7 +208,7 @@ def save_polygons_or_multipolygons(area, geometry):
     """
     # This is very similar to utils.save_polygons, but expects a GEOSGeometry
     # instead of an OGRGeometry.
-    # XXX This doesn't check options['commit'], but should obviously only be
+    # This doesn't check options['commit'], but should obviously only be
     # called when we do want to commit.
 
     if geometry.geom_type == 'MultiPolygon':
@@ -239,7 +239,7 @@ def update_or_create_area(code,
                           parent_area=None):
     try:
         # Police neighbourhood codes are only guaranteed to be unique within
-        # forces, not nationally, so parent_area is needed too.
+        # forces, not nationally, so parent_area is needed too:
         m = Area.objects.get(codes__code=code,
                              type=area_type,
                              parent_area=parent_area)
@@ -354,7 +354,6 @@ class Command(BaseCommand):
             global logger
             logger = PoliceLogger()
 
-
         current_generation = Generation.objects.current()
         new_generation = Generation.objects.new()
         if not new_generation:
@@ -461,6 +460,9 @@ class Command(BaseCommand):
                                       # parent_area needs to be set here,
                                       # rather than using find_parents.py:
                                       parent_area=force)
+
+
+            # Finish processing this force:
 
             if logger:
                 logger.log_extra_names(force_code, nbh_kmls_codes_list, force_names_dict)
