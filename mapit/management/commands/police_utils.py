@@ -5,6 +5,11 @@ from mapit.models import Code, Name
 
 
 class PoliceLogger(object):
+
+    """
+    Log details of problems in the KML and names datasets and save as JSON.
+    """
+
     def __init__(self):
         self.code_max_length = 0
         self.name_max_length = 0
@@ -17,14 +22,20 @@ class PoliceLogger(object):
         self.extra_names = [('force_code', 'nbh_code', 'nbh_name')]
 
     def log_code_and_name_max_lengths(self, code, name):
-        '''Find the maximum lengths of values to be saved in Code.code and
+        """
+        Find the maximum lengths needed for the Code.code and Name.name fields.
+
+        Find the maximum lengths of values to be saved in Code.code and
         Name.name, since this dataset has some very long ones which may require
         the fields' max_length to be increased again.
-        '''
+        """
         self.code_max_length = max(len(code), self.code_max_length)
         self.name_max_length = max(len(name), self.name_max_length)
 
     def print_code_and_name_max_lengths(self):
+        """
+        Print the maximum lengths needed for the Code.code and Name.name fields.
+        """
         try:
             existing_code_max_length = Code._meta.get_field('code').max_length
         except:
@@ -40,46 +51,77 @@ class PoliceLogger(object):
         print '    (currently set to', str(existing_name_max_length)+')'
 
     def log_invalid_polygon_before_transformation(self, num_coords, force_code, nbh_code):
-        '''Store details of a neighbourhood polygon which is invalid when it is
-        extracted from the KML file.
-        '''
+        """
+        Log a neighbourhood polygon which is initially invalid.
+
+        This dataset contains some polygons which are invalid, due to
+        Self-intersections or Ring Self-intersections. Log the number of points
+        in these polygons in order to find the simplest one for testing ways of
+        fixing them.
+        """
         self.invalid_before.append((num_coords, force_code, nbh_code))
 
     def log_still_invalid_polygon(self, force_code, nbh_code, geometry_id, num_polys):
-        '''Store details of a neighbourhood polygon which is still invalid after
-        transformation and simplification, and therefore has been excluded
-        from the queryset to be aggregated for the force geometry.
-        '''
+        """
+        Log an unfixably invalid neighbourhood polygon.
+
+        Log a neighbourhood polygon which is still invalid after attempting to
+        fix it using simplify(), and therefore is excluded from the queryset to
+        be aggregated for the force geometry.
+
+        Also log the total number of polygons which were produced for this
+        neighbourhood, so that we can see if they were all still invalid
+        """
         self.invalid_polygons.append((force_code, nbh_code, geometry_id, num_polys))
 
     def log_nbh_polygons_not_updated(self, force_code, nbh_code):
-        '''Store details of neighbourhoods for which no new polygons could be
-        created. Any previously existing polygons for these neighbourhoods
-        were left in place and not deleted.
-        '''
+        """
+        Log a neighbourhood for which no new polygons could be created.
+
+        If no new geometry could be created for a neighbourhood, then any
+        previously existing polygons for it were left in place and not deleted.
+        """
         self.nbh_polygons_not_updated.append((force_code, nbh_code))
 
     def log_outer_ring_too_tiny(self, force_code, nbh_code, ring_coords):
-        '''Store details of geometries in which the outer boundary ring of a
-        polygon is too small to be displayed on the map. nbh_code is
-        'force' for forces. (I expect these to be tiny areas created by
-        simplifying originally invalid neighbourhood geometries.)
-        '''
+        """
+        Log a geometry which was too small to be displayed and was discarded.
+
+        If the outer boundary ring of a polygon is too small to be displayed on
+        the map, the polygon is not saved. I expect these to be tiny areas
+        created by simplifying originally invalid neighbourhood geometries.
+
+        nbh_code is 'force' when the geometry is a force geometry.
+        """
         self.outer_ring_too_tiny.append((force_code, nbh_code, ring_coords))
 
     def log_removed_holes(self, force_code, nbh_code, holes_before, holes_after):
+        """
+        Log a geometry which contained tiny holes which were removed.
+
+        Very small inner rings make a polygon undisplayable on the map, because
+        the simplification tolerance specified in area.html causes the polygon
+        returned in the response by area_polygon to be empty. Removing these
+        small holes manually makes the polygon displayable.
+
+        I expect these to be tiny holes created by unionagg() in force
+        geometries where neighbourhood boundaries don't match up, or by
+        simplifying invalid neighbourhood polygons.
+        """
         self.removed_holes.append((force_code, nbh_code, holes_before, holes_after))
 
     def log_missing_name(self, force_code, nbh_code):
-        '''Store details of a neighbourhood for which there is no name in the
-        API dataset. This is called once per neighbourhood.
-        '''
+        """
+        Log a neighbourhood for which no name exists in the API dataset.
+        """
         self.missing_names.append((force_code, nbh_code))
 
     def log_extra_names(self, force_code, nbh_kmls_codes_list, force_names_dict):
-        '''Store extra neighbourhood names from the API dataset whose codes do
-        not match any in the KMLs dataset. This is called once per force.
-        '''
+        """
+        Log neighbourhood names in the API dataset with no matching KML.
+
+        This is called once per force.
+        """
         nbh_kmls_codes_set = set(nbh_kmls_codes_list)
         nbh_names_codes_set = set(force_names_dict.keys())
         extra_codes_set = nbh_names_codes_set - nbh_kmls_codes_set
@@ -90,10 +132,18 @@ class PoliceLogger(object):
                                      force_names_dict[nbh_code]))
 
     def save_data_to_json(self, save_path, basename, data):
+        """
+        Serialize one type of logged data to JSON and save it.
+        """
         with open(os.path.join(save_path, basename+'.json'), 'w') as f:
             json.dump(data, f, indent=4)
 
     def print_and_save_logged_data(self, save_path):
+
+        """
+        Print summaries of the logged data, and serialize and save it all.
+        """
+
         self.print_code_and_name_max_lengths()
         print ''
 
