@@ -23,9 +23,11 @@ logger = None
 
 
 def parse_police_names_json(names_path, options):
+
     """
-    This parses the force and neighbourhood names from the API JSON files, and
-    returns a dict like this:
+    Parse the names data from the API JSON files, and return it in a dict.
+
+    Return a dict like this:
 
     names_dict = {u'lancashire': (u'Lancashire Constabulary',
                                   {u'E37': u'Whalley',
@@ -48,6 +50,7 @@ def parse_police_names_json(names_path, options):
                   ...
                   }
     """
+
     h = HTMLParser.HTMLParser()
 
     with open(os.path.join(names_path, 'forces.json')) as f:
@@ -84,10 +87,12 @@ def parse_police_names_json(names_path, options):
     return names_dict
 
 def make_iterable_shapes(geometry):
-    '''
-    Takes a GEOS Polygon or MultiPolygon, and returns an iterable whose
-    elements are GEOS Polygons.
-    '''
+    """
+    Make an iterable sequence of polygons from a geometry.
+
+    Take a GEOS Polygon or MultiPolygon, and return an iterable whose elements
+    are GEOS Polygons.
+    """
     input_type = geometry.geom_type
     if input_type == 'MultiPolygon':
         shapes = geometry
@@ -98,10 +103,12 @@ def make_iterable_shapes(geometry):
     return shapes
 
 def too_tiny(linear_ring):
-    '''
-    Takes a linear ring, puts it in a polygon, transforms and simplifies it as
-    area.html does when displaying an area on a map, and returns True if it is
-    too small to be displayed and False otherwise.
+    """
+    Determine if a linear ring is too small to be displayed on the map.
+
+    Take a GEOSGeometry LinearRing, put it in a polygon, transform and simplify
+    it as area.html does when displaying an area on a map, and return True if it
+    is too small to be displayed and False otherwise.
 
     >>> too_tiny(LinearRing((0, 0), (0, 100), (100, 100), (100, 0), (0, 0), srid=27700))
     False
@@ -109,7 +116,7 @@ def too_tiny(linear_ring):
     True
     >>> too_tiny(LinearRing((533177, 181047), (533308, 181041), (533177, 181047), (533177, 181047), srid=27700))
     True
-    '''
+    """
     # This must be the same tolerance as area.html uses for displaying maps:
     tolerance = 0.0001
     new_srid = 4326
@@ -122,11 +129,15 @@ def too_tiny(linear_ring):
     return False
 
 def get_displayable_polygon(polygon, force_code, nbh_code):
-    '''
-    Takes a polygon and returns a new polygon, excluding any interior linear
+
+    """
+    Take a polygon and return it as a displayable polygon.
+
+    Take a polygon and return a new polygon, excluding any interior linear
     rings in the original geometry which are too small to be displayed on the map,
-    or returns None if the outer boundary is too small to be displayed.
-    '''
+    or return None if the outer boundary is too small to be displayed.
+    """
+
     if too_tiny(polygon[0]):
         print 'Outer boundary of polygon is too small to be displayed; ignoring this polygon'
         if logger:
@@ -136,11 +147,15 @@ def get_displayable_polygon(polygon, force_code, nbh_code):
     return Polygon(*rings)
 
 def get_displayable_polygon_or_multipolygon(geometry, force_code, nbh_code):
-    '''
-    Takes a polygon or multipolygon and returns a new geometry of the same type,
-    excluding any interior linear rings in the original geometry which are too
-    small to be displayed on the map.
-    '''
+
+    """
+    Take a Polygon or MultiPolygon and return it as a displayable geometry.
+
+    Take a GEOSGeometry Polygon or MultiPolygon and return it as a new geometry,
+    excluding any linear rings in the original geometry which are too small to
+    be displayed on the map.
+    """
+
     shapes = make_iterable_shapes(geometry)
     holes_before = sum(geometry.num_interior_rings for geometry in shapes)
 
@@ -167,12 +182,16 @@ def get_displayable_polygon_or_multipolygon(geometry, force_code, nbh_code):
     return new_geometry
 
 def get_valid_polygon(feat):
+
     """
-    This takes a GDAL feature, checks whether the geometry it contains is valid,
-    and if not, tries to fix it using simplify(). It returns a valid OSGB (27700)
+    Take a GDAL feature and return a valid transformed geometry from it.
+
+    Take a GDAL feature, check whether the geometry it contains is valid,
+    and if not, try to fix it using simplify(). Return a valid OSGB (27700)
     GEOSGeometry polygon, a boolean value indicating whether the geometry was
     valid initially, and the number of co-ordinates in the initial geometry.
     """
+
     # Check that the feature is valid before transforming:
     geos_geometry = feat.geom.geos
     valid_before = geos_geometry.valid
@@ -208,11 +227,15 @@ def get_valid_polygon(feat):
     return (g, valid_before, geos_geometry.num_coords)
 
 def save_polygons_or_multipolygons(area, geometry):
+
     """
-    This takes an Area and a GEOSGeometry object, saves the geometry (as one
-    or more Geometry objects) to area.polygons, and returns a list of tuples of
+    Save a geometry to an Area's polygons.
+
+    Take an Area and a GEOSGeometry object, save the geometry (as one or more
+    Geometry objects) to area.polygons, and return a list of tuples of
     Polygons and their Geometry IDs.
     """
+
     # This is very similar to utils.save_polygons, but expects a GEOSGeometry
     # instead of an OGRGeometry.
     # This doesn't check options['commit'], but should obviously only be
@@ -239,6 +262,16 @@ def update_or_create_area(code,
                           options,
                           feat=None,
                           parent_area=None):
+
+    """
+    Get an existing Area or create a new one, and update it and its related objects.
+
+    Identify an existing Area or create a new one, and update it. If the area is
+    a neighbourhood, try to extract a valid, displayable geometry from a GDAL
+    Feature for it. If the --commit option is given, save the area along with
+    its names, codes and polygons. Return the Area, which may be unsaved if
+    --commit is not specified.
+    """
     try:
         # Police neighbourhood codes are only guaranteed to be unique within
         # forces, not nationally, so parent_area is needed too:
