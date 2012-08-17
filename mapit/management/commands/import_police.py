@@ -159,7 +159,7 @@ def get_displayable_polygon_or_multipolygon(geometry, force_code, nbh_code):
     shapes = make_iterable_shapes(geometry)
     holes_before = sum(geometry.num_interior_rings for geometry in shapes)
 
-    # Discard all False values (here, None or any for which len(p) == 0):
+    # Discard all False values (here, these are None or any for which len(p) == 0):
     new_polys = filter(None,
                        (get_displayable_polygon(p, force_code, nbh_code)
                            for p in shapes))
@@ -335,8 +335,10 @@ def update_or_create_area(code,
             polygon, geometry_id = tup
             if polygon.valid:
                 continue
-            # unionagg() fails when invalid polygons are included,
-            # so keep track of them to exclude later:
+            # unionagg() fails when invalid polygons are included, so keep track
+            # of them to exclude later. (I think that all invalid polygons are
+            # either being fixed or are undisplayable and discarded, but keep
+            # this in anyway for now.)
             if options['commit']:
                 geometries_to_exclude.append(geometry_id)
             if logger:
@@ -430,7 +432,8 @@ class Command(BaseCommand):
 
             country = wales if (force_code in welsh_forces) else england
 
-            # Create the force, without any polygons for now:
+            # Create the force, without any polygons for now. We need a force
+            # area to use as parent_area for its neighbourhood children.
             force = update_or_create_area(code=force_code,
                                           area_type=force_area_type,
                                           country=country,
@@ -499,9 +502,8 @@ class Command(BaseCommand):
             if logger:
                 logger.log_extra_names(force_code, nbh_kmls_codes_list, force_names_dict)
 
-            # unionagg() and collect() are GeoQueryset methods, so can't be used
-            # to create a force geometry if the polygons haven't been saved to
-            # the database:
+            # unionagg() is a GeoQueryset method, so can't be used to create a
+            # force geometry if the polygons haven't been saved to the database:
             if not options['commit']:
                 print '(not trying to create force geometries as --commit not specified)'
                 continue
@@ -510,12 +512,15 @@ class Command(BaseCommand):
             # excluding any polygons which are still invalid:
             valid_polys = Geometry.objects.filter(area__parent_area_id=force.id).exclude(id__in=geometries_to_exclude)
             print 'Trying to create a force geometry for %s' % force_name
+
             force_geometry = valid_polys.unionagg()
             if not force_geometry:
                 raise Exception, 'Failed to create a force geometry for %s' % force_name
+
             displayable_force_geometry = get_displayable_polygon_or_multipolygon(force_geometry, force_code, 'force')
             if not displayable_force_geometry:
                 raise Exception, 'Failed to create a displayable force geometry for %s' % force_name
+
             save_polygons_or_multipolygons(force, displayable_force_geometry)
 
 
