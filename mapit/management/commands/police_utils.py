@@ -158,27 +158,29 @@ class PoliceLogger(object):
             print ''
 
         data_to_process = (
-            {'basename': 'invalid_before',
-             'message': '%d features invalid before transformation' % (len(self.invalid_before) - 1)},
-            {'basename': 'invalid_polygons',
-             'message': "%d neighbourhood polygons are still invalid and were excluded from their forces' polygons" % (len(self.invalid_polygons) - 1)},
-            {'basename': 'nbh_polygons_not_updated',
-             'message': "Polygons for %d neighbourhoods could not be updated" % (len(self.nbh_polygons_not_updated) - 1)},
-            {'basename': 'outer_ring_too_tiny',
-             'message': "%d polygons were too small to be displayed on the map and were not saved" % (len(self.outer_ring_too_tiny) - 1)},
-            {'basename': 'removed_holes',
-             'message': "%d polygons contained holes which were too small to be displayed on the map and were removed" % (len(self.removed_holes) - 1)},
-            {'basename': 'missing_names',
-             'message': 'Names were missing for %d neighbourhoods' % (len(self.missing_names) - 1)},
-            {'basename': 'extra_names',
-             'message': '%d extra neighbourhood names were found' % (len(self.extra_names) - 1)},
+            ('invalid_before',
+             "%d features invalid before transformation"),
+            ('invalid_polygons',
+             "%d neighbourhood polygons are still invalid and were excluded from their forces' polygons"),
+            ('nbh_polygons_not_updated',
+             "Polygons for %d neighbourhoods could not be updated"),
+            ('outer_ring_too_tiny',
+             "%d polygons were too small to be displayed on the map and were not saved"),
+            ('removed_holes',
+             "%d polygons contained holes which were too small to be displayed on the map and were removed"),
+            ('missing_names',
+             "Names were missing for %d neighbourhoods"),
+            ('extra_names',
+             "%d extra neighbourhood names were found"),
         )
 
         print 'Logged data is saved in %s/' % save_path
         for i in data_to_process:
-            basename = i['basename']
-            message = i['message']
+            basename = i[0]
             stored_data = getattr(self, basename)
+            # subtract 1 from len(stored_data) because the first element of each
+            # list provides helpful documentation in the saved files:
+            message = i[1] % (len(stored_data) - 1)
             print message
             print '    (see %s.json)' % basename
             self.save_data_to_json(save_path, basename, stored_data)
