@@ -3,6 +3,7 @@
 # http://www.police.uk/data and JSON data from the Police API (which is fetched by get-police-names.py), so you need those first.
 
 import datetime
+import doctest
 import HTMLParser
 import json
 import os
@@ -12,6 +13,7 @@ import sys
 from optparse import make_option
 
 from django.core.management.base import BaseCommand
+
 from django.contrib.gis.gdal import *
 from django.contrib.gis.geos import LinearRing, Polygon, MultiPolygon
 
@@ -380,7 +382,6 @@ class Command(BaseCommand):
 
     def handle(self, kml_path, names_path, **options):
         if options['doctests']:
-            import doctest
             doctest.testmod(sys.modules[__name__])
             return
 
