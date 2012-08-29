@@ -1,6 +1,7 @@
 # This script is used to import the boundaries of police neighbourhoods and
 # forces in England and Wales into MaPit. It takes KML data from
-# http://www.police.uk/data and JSON data from the Police API (which is fetched by get-police-names.py), so you need those first.
+# http://www.police.uk/data and JSON data from the Police API (which is fetched
+# by get-police-names.py), so you need those first.
 
 import datetime
 import doctest
@@ -358,7 +359,7 @@ def update_or_create_area(code,
                                                  geometry_id,
                                                  num_polys)
 
-    # m is an Area (which might be unsaved)
+    # m is a new or updated Area (which might be unsaved)
     return m
 
 
