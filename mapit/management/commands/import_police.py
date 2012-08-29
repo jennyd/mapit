@@ -127,7 +127,7 @@ def get_displayable_polygon(polygon, force_code, nbh_code):
     """
     Take a polygon and return it as a displayable polygon.
 
-    Take a polygon and return a new polygon, excluding any interior linear
+    Take a GEOSGeometry polygon and return a new polygon, excluding any interior
     rings in the original geometry which are too small to be displayed on the map,
     or return None if the outer boundary is too small to be displayed.
     """
