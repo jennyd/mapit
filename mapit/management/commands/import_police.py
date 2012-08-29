@@ -337,10 +337,16 @@ def update_or_create_area(code,
             polygon, geometry_id = tup
             if polygon.valid:
                 continue
+
             # unionagg() fails when invalid polygons are included, so keep track
-            # of them to exclude later. (I think that all invalid polygons are
-            # either being fixed or are undisplayable and discarded, but keep
-            # this in anyway for now.)
+            # of them to exclude later.
+
+            # I think that all invalid polygons are being fixed, but I'm leaving
+            # this in anyway for now. I also can't think of a way in which an
+            # area could have a mixture of valid and invalid polygons, so
+            # num_polys probably doesn't tell us anything helpful that we don't
+            # already know.
+
             if options['commit']:
                 geometries_to_exclude.append(geometry_id)
             if logger:
