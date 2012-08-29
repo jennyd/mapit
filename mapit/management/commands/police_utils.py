@@ -45,10 +45,10 @@ class PoliceLogger(object):
         except:
             existing_name_max_length = None
 
-        print 'Maximum length required for Code.code:', self.code_max_length
-        print '    (currently set to', str(existing_code_max_length)+')'
-        print 'Maximum length required for Name.name:', self.name_max_length
-        print '    (currently set to', str(existing_name_max_length)+')'
+        print "Maximum length required for Code.code:", self.code_max_length
+        print "    (currently set to", str(existing_code_max_length)+")"
+        print "Maximum length required for Name.name:", self.name_max_length
+        print "    (currently set to", str(existing_name_max_length)+")"
 
     def log_invalid_polygon_before_transformation(self, num_coords, force_code, nbh_code):
         """
@@ -145,17 +145,17 @@ class PoliceLogger(object):
         """
 
         self.print_code_and_name_max_lengths()
-        print ''
+        print ""
 
         if self.invalid_before:
             # Sort invalid_before by num_coords to find the simplest initially
             # invalid polygon for testing purposes:
             simplest = min(self.invalid_before[1:])
-            print 'Simplest polygon which was invalid straight after loading it from the KML:'
-            print '  force code:', simplest[1]
-            print '  neighbourhood code:', simplest[2]
-            print '  number of points:', simplest[0]
-            print ''
+            print "Simplest polygon which was invalid straight after loading it from the KML:"
+            print "  force code:", simplest[1]
+            print "  neighbourhood code:", simplest[2]
+            print "  number of points:", simplest[0]
+            print ""
 
         data_to_process = (
             ('invalid_before',
@@ -174,7 +174,7 @@ class PoliceLogger(object):
              "%d extra neighbourhood names were found"),
         )
 
-        print 'Logged data is saved in %s/' % save_path
+        print "Logged data is saved in %s/" % save_path
         for i in data_to_process:
             basename = i[0]
             stored_data = getattr(self, basename)
@@ -182,6 +182,6 @@ class PoliceLogger(object):
             # list provides helpful documentation in the saved files:
             message = i[1] % (len(stored_data) - 1)
             print message
-            print '    (see %s.json)' % basename
+            print "    (see %s.json)" % basename
             self.save_data_to_json(save_path, basename, stored_data)
 

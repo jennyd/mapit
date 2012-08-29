@@ -54,7 +54,7 @@ def parse_police_names_json(names_path, options):
     h = HTMLParser.HTMLParser()
 
     with open(os.path.join(names_path, 'forces.json')) as f:
-        print 'Parsing names from API data'
+        print "Parsing names from API data"
         force_names = json.load(f)
         names_dict = {}
         for force in force_names:
@@ -139,7 +139,7 @@ def get_displayable_polygon(polygon, force_code, nbh_code):
     """
 
     if too_tiny(polygon[0]):
-        print 'Outer boundary of polygon is too small to be displayed; ignoring this polygon'
+        print "Outer boundary of polygon is too small to be displayed; ignoring this polygon"
         if logger:
             logger.log_outer_ring_too_tiny(force_code, nbh_code, polygon[0].coords)
         return None
@@ -199,7 +199,7 @@ def get_valid_polygon(feat):
     # fixable by simplify(), but we want to know if any other types of
     # invalidity come up:
     if (not valid_before) and ('Self-intersection' not in geos_geometry.valid_reason):
-        raise Exception, 'Invalid geometry found before transforming, and not a self-intersection'
+        raise Exception, "Invalid geometry found before transforming, and not a self-intersection"
 
     # feat is a GDAL feature
     ogr_g = feat.geom.transform(27700, clone=True)
@@ -210,7 +210,7 @@ def get_valid_polygon(feat):
 
     # We're assuming that transformation doesn't affect validity:
     if not valid_before:
-        print '    Simplifying polygon'
+        print "    Simplifying polygon"
         # This seems to create a new valid geometry (Polygon or
         # MultiPolygon) covering pretty much the same areas as the original
         # invalid one appears to. Many originally invalid polygons look as
@@ -222,7 +222,7 @@ def get_valid_polygon(feat):
         g = g.simplify(preserve_topology=False)
 
         if not g.valid:
-            raise Exception, 'Geometry still invalid after simplifying'
+            raise Exception, "Geometry still invalid after simplifying"
 
     return (g, valid_before, geos_geometry.num_coords)
 
@@ -505,21 +505,21 @@ class Command(BaseCommand):
             # unionagg() is a GeoQueryset method, so can't be used to create a
             # force geometry if the polygons haven't been saved to the database:
             if not options['commit']:
-                print '(not trying to create force geometries as --commit not specified)'
+                print "(not trying to create force geometries as --commit not specified)"
                 continue
 
             # Create a force area geometry from its neighbourhood children,
             # excluding any polygons which are still invalid:
             valid_polys = Geometry.objects.filter(area__parent_area_id=force.id).exclude(id__in=geometries_to_exclude)
-            print 'Trying to create a force geometry for %s' % force_name
+            print "Trying to create a force geometry for %s" % force_name
 
             force_geometry = valid_polys.unionagg()
             if not force_geometry:
-                raise Exception, 'Failed to create a force geometry for %s' % force_name
+                raise Exception, "Failed to create a force geometry for %s" % force_name
 
             displayable_force_geometry = get_displayable_polygon_or_multipolygon(force_geometry, force_code, 'force')
             if not displayable_force_geometry:
-                raise Exception, 'Failed to create a displayable force geometry for %s' % force_name
+                raise Exception, "Failed to create a displayable force geometry for %s" % force_name
 
             save_polygons_or_multipolygons(force, displayable_force_geometry)
 
@@ -535,8 +535,8 @@ class Command(BaseCommand):
             if not os.access(save_path, os.F_OK):
                 os.mkdir(save_path)
 
-            print ''
-            print '----------------------------------------'
-            print ''
+            print ""
+            print "----------------------------------------"
+            print ""
             logger.print_and_save_logged_data(save_path)
 
