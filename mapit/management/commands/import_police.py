@@ -137,8 +137,7 @@ def get_displayable_polygon(polygon, force_code, nbh_code):
         if logger:
             logger.log_outer_ring_too_tiny(force_code, nbh_code, polygon[0].coords)
         return None
-    rings = [ring for ring in polygon if not too_tiny(ring)]
-    return Polygon(*rings)
+    return Polygon(*[ring for ring in polygon if not too_tiny(ring)])
 
 def get_displayable_polygon_or_multipolygon(geometry, force_code, nbh_code):
 
