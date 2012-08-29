@@ -55,34 +55,25 @@ def parse_police_names_json(names_path, options):
     """
 
     h = HTMLParser.HTMLParser()
+    names_dict = {}
 
-    with open(os.path.join(names_path, 'forces.json')) as f:
-        print "Parsing names from API data"
-        force_names = json.load(f)
-        names_dict = {}
-        for force in force_names:
+    def parse_names_file(filename, lookup_dict):
+        with open(os.path.join(names_path, filename)) as f:
+            names = json.load(f)
+        for n in names:
             # Strangely, the JSON seems to contain HTML entities, so try to
             # unescape them:
-            force['name'] = h.unescape(force['name'])
-            if force['id'] in names_dict:
-                raise Exception, "Force id %s found twice in JSON" % force['id']
-            names_dict[force['id']] = (force['name'], {})
+            n['name'] = h.unescape(n['name'])
+            if n['id'] in lookup_dict:
+                raise Exception, "ID '%s' found twice in %s" % (n['id'], filename)
+            lookup_dict[n['id']] = (n['name'], {}) if (filename == 'forces.json') else n['name']
             if logger:
-                logger.log_code_and_name_max_lengths(force['id'],
-                                                     force['name'])
+                logger.log_code_and_name_max_lengths(n['id'], n['name'])
 
+    print "Parsing names from API data"
+    parse_names_file('forces.json', names_dict)
     for force_id in names_dict.keys():
-        with open(os.path.join(names_path, force_id+'_neighbourhoods.json')) as f:
-            nbh_names = json.load(f)
-            for nbh in nbh_names:
-                # As above, convert HTML entities:
-                nbh['name'] = h.unescape(nbh['name'])
-                if nbh['id'] in names_dict[force_id][1]:
-                    raise Exception, "Neighbourhood id %s found twice in force %s in JSON" % (nbh['id'], force_id)
-                names_dict[force_id][1][nbh['id']] = nbh['name']
-                if logger:
-                    logger.log_code_and_name_max_lengths(nbh['id'],
-                                                         nbh['name'])
+        parse_names_file(force_id+'_neighbourhoods.json', names_dict[force_id][1])
 
     if logger:
         logger.print_code_and_name_max_lengths()
