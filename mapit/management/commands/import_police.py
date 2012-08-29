@@ -197,8 +197,7 @@ def get_valid_polygon(feat):
     # feat is a GDAL feature
     ogr_g = feat.geom.transform(27700, clone=True)
     # ogr_g is an OGRGeometry polygon
-    # ogr_g.geos returns a GEOSGeometry polygon, for
-    # save_polygons_or_multipolygons:
+    # ogr_g.geos returns a GEOSGeometry polygon, for save_geos_polygons:
     g = ogr_g.geos
 
     # We're assuming that transformation doesn't affect validity:
@@ -219,7 +218,7 @@ def get_valid_polygon(feat):
 
     return (g, valid_before, geos_geometry.num_coords)
 
-def save_polygons_or_multipolygons(area, geometry):
+def save_geos_polygons(area, geometry):
 
     """
     Save a geometry to an Area's polygons.
@@ -229,7 +228,7 @@ def save_polygons_or_multipolygons(area, geometry):
     Polygons and their Geometry IDs.
     """
 
-    # This is very similar to utils.save_polygons, but expects a GEOSGeometry
+    # This is similar to utils.save_polygons, but expects a GEOSGeometry
     # instead of an OGRGeometry.
     # This doesn't check options['commit'], but should obviously only be
     # called when we do want to commit.
@@ -320,7 +319,7 @@ def update_or_create_area(code,
         m.names.update_or_create({ 'type': name_type }, { 'name': name })
         m.codes.update_or_create({ 'type': code_type }, { 'code': code })
         if area_type == nbh_area_type and g is not None:
-            new_geometries = save_polygons_or_multipolygons(m, g)
+            new_geometries = save_geos_polygons(m, g)
 
     if new_geometries:
         num_polys = len(new_geometries)
@@ -519,7 +518,7 @@ class Command(BaseCommand):
             if not displayable_force_geometry:
                 raise Exception, "Failed to create a displayable force geometry for %s" % force_name
 
-            save_polygons_or_multipolygons(force, displayable_force_geometry)
+            save_geos_polygons(force, displayable_force_geometry)
 
 
         if logger:
