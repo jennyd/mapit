@@ -189,8 +189,10 @@ def get_valid_polygon(feat):
     # Self-intersections and Ring Self-intersections seem to be generally
     # fixable by simplify(), but we want to know if any other types of
     # invalidity come up:
-    if (not valid_before) and ('Self-intersection' not in geos_geometry.valid_reason):
-        raise Exception, "Invalid geometry found before transforming, and not a self-intersection"
+    # However, valid_reason is only available in Django 1.3 and above, so don't
+    # check this now.
+#    if (not valid_before) and ('Self-intersection' not in geos_geometry.valid_reason):
+#        raise Exception, "Invalid geometry found before transforming, and not a self-intersection"
 
     # feat is a GDAL feature
     ogr_g = feat.geom.transform(27700, clone=True)
