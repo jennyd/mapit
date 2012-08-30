@@ -25,7 +25,7 @@ from police_utils import PoliceLogger
 logger = None
 
 
-def parse_police_names_json(names_path, options):
+def parse_police_names_json(names_path):
 
     """
     Parse the names data from the API JSON files, and return it in a dict.
@@ -408,7 +408,7 @@ class Command(BaseCommand):
         if len(kml_forces_list) + 3 != len(os.listdir(names_path)):
             raise Exception, "The two datasets contain different numbers of forces!"
 
-        names_dict = parse_police_names_json(names_path, options)
+        names_dict = parse_police_names_json(names_path)
 
         # These are needed for both forces and neighbourhoods:
         nbh_area_type = Type.objects.get(code='PON')
