@@ -392,20 +392,22 @@ class Command(BaseCommand):
 
         # The May 2012 KML dataset includes '.DS_Store' in the root directory,
         # making os.listdir(kml_path) one longer than it was before:
-        ignored = ('.DS_Store', 'README')
+        kml_ignored = ('.DS_Store',
+                       'README')
 
-        kml_forces_list = [force for force in os.listdir(kml_path) if force not in ignored]
+        # forces.json contains the names of all forces.
+        # Data for neighbourhoods in Northern Ireland was recently added to the
+        # API (between 31/07/2012 and 16/08/2012), but no KMLs are available yet,
+        # so we are ignoring these for now. log_extra_names doesn't log these
+        # names either.
+        names_ignored = ('forces.json',
+                         'northern-ireland_neighbourhoods.json',
+                         'README')
 
-        # The three extra items in names_path are:
-        #   - forces.json, an extra file for the names of all forces.
-        #   - data for neighbourhoods in Northern Ireland, which was recently
-        #     added to the API (between 31/07/2012 and 16/08/2012), but no KMLs
-        #     are available yet, so we are ignoring these for now.
-        #     log_extra_names doesn't log these names either.
-        #   - README - both dataset directories contain READMEs with licence
-        #     information but the KMLs one has already been excluded from
-        #     kml_forces_list.
-        if len(kml_forces_list) + 3 != len(os.listdir(names_path)):
+        kml_forces_list = [force for force in os.listdir(kml_path) if force not in kml_ignored]
+        names_forces_list = [force for force in os.listdir(names_path) if force not in names_ignored]
+
+        if len(kml_forces_list) != len(names_forces_list):
             raise Exception, "The two datasets contain different numbers of forces!"
 
         names_dict = parse_police_names_json(names_path)
