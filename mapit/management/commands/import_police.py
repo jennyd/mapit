@@ -517,7 +517,7 @@ class Command(BaseCommand):
 
             # Create a force area geometry from its neighbourhood children,
             # excluding any polygons which are still invalid:
-            valid_polys = Geometry.objects.filter(area__parent_area_id=force.id).exclude(id__in=geometries_to_exclude)
+            valid_polys = Geometry.objects.filter(area__parent_area=force).exclude(id__in=geometries_to_exclude)
             print "Trying to create a force geometry for %s" % force_name
 
             force_geometry = valid_polys.unionagg()
