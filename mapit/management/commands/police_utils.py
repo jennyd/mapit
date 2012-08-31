@@ -159,7 +159,7 @@ class PoliceLogger(object):
 
         data_to_process = (
             ('invalid_before',
-             "%d features invalid before transformation"),
+             "%d polygons were invalid before transformation"),
             ('invalid_polygons',
              "%d neighbourhood polygons are still invalid and were excluded from their forces' polygons"),
             ('nbh_polygons_not_updated',
