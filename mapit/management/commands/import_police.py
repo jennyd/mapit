@@ -170,8 +170,6 @@ def get_displayable_polygon_or_multipolygon(geometry, force_code, nbh_code):
     if holes_before != holes_after:
         if logger:
             logger.log_removed_holes(force_code, nbh_code, holes_before, holes_after)
-        print  'Interior rings before:', holes_before
-        print  'Interior rings after:', holes_after
     return new_geometry
 
 def get_valid_polygon(feat):
