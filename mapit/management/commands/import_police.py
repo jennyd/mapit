@@ -388,9 +388,13 @@ class Command(BaseCommand):
         if not new_generation:
             raise Exception, "No new generation to be used for import!"
 
-        # The May 2012 KML dataset includes '.DS_Store' in the root directory,
-        # making os.listdir(kml_path) one longer than it was before:
+        # The May 2012 KML dataset includes '.DS_Store' in the root directory;
+        # exclude it explicitly, even though it hasn't appeared since.
+        # An empty directory for Northern Ireland appeared in the July 2012 KMLs
+        # dataset, so hopefully we'll get some data there next month, but
+        # still exclude it for now.
         kml_ignored = ('.DS_Store',
+                       'northern-ireland',
                        'README')
 
         # forces.json contains the names of all forces.
