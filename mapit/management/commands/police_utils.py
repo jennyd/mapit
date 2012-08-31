@@ -70,7 +70,7 @@ class PoliceLogger(object):
         be aggregated for the force geometry.
 
         Also log the total number of polygons which were produced for this
-        neighbourhood, so that we can see if they were all still invalid
+        neighbourhood, so that we can see if they were all still invalid.
         """
         self.invalid_polygons.append((force_code, nbh_code, geometry_id, num_polys))
 
