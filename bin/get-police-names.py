@@ -66,3 +66,17 @@ for force in forces:
     with open(os.path.join(save_path, force_id+'_neighbourhoods.json'), 'w') as f:
         f.write(nbhs)
 
+readme_text = """These files were created by get-police-names.py on %s using data from
+the Police API at:
+
+    http://policeapi2.rkh.co.uk/api/docs/
+
+The data available via the API is licensed for use under the Open Government
+Licence:
+
+    http://www.nationalarchives.gov.uk/doc/open-government-licence/
+""" % date_string
+
+with open(os.path.join(save_path, 'README'), 'w') as f:
+    f.write(readme_text)
+
