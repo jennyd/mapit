@@ -109,6 +109,9 @@ Here are the basic instructions to install OS OpenData and ONSPD:
 1. AREA_SRID in conf/general.yml should be 27700 (as Boundary-Line shapes are in OSGB).   
 2. Download the latest Code-Point Open, Boundary-Line and ONSPD from
    <http://parlvid.mysociety.org:81/os/>, and save/unzip in the data directory.
+   Download the neighbourhood KMLs for all forces from <http://www.police.uk/data>.
+   Sign up for an API key at <http://policeapi2.rkh.co.uk/api/docs/signup/> and
+   then run bin/get-police-names.py to download the names data via the API.
 3. Change to the project directory, and create database tables (if you haven't already done this):
    ./manage.py syncdb
    ./manage.py migrate mapit
@@ -125,6 +128,7 @@ Here are the basic instructions to install OS OpenData and ONSPD:
    ./manage.py import_nspd_ni_areas
    ./manage.py import_nspd_ni ../data/ONSPD.csv
    ./manage.py import_nspd_crown_dependencies ../data/ONSPD.csv
+   ./manage.py import_police --commit ../data/Police/ ../data/Police-Names/
    ./manage.py generation_activate --commit
 
 For notes on what was done to create generations as you can see on
