@@ -1,5 +1,5 @@
 # This script is used to import the boundaries of police neighbourhoods and
-# forces in England and Wales into MaPit. It takes KML data from
+# forces in England and Wales into MapIt. It takes KML data from
 # http://www.police.uk/data and JSON data from the Police API (which is fetched
 # by get-police-names.py), so you need those first.
 
