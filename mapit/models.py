@@ -296,6 +296,7 @@ class Name(models.Model):
         n = n.replace('St. ', 'St ')
         if name.type.code == 'M': return n
         if name.type.code == 'S': return n
+        if name.type.code == 'P': return n
         # Type must be 'O' here
         n = re.sub(' Euro Region$', '', n) # EUR
         n = re.sub(' (Burgh|Co|Boro) Const$', '', n) # WMC
@@ -317,7 +318,7 @@ class Name(models.Model):
     def save(self, *args, **kwargs):
         super(Name, self).save(*args, **kwargs)
         try:
-            name = self.area.names.filter(type__code__in=('M', 'O', 'S')).order_by('type__code')[0]
+            name = self.area.names.filter(type__code__in=('M', 'O', 'S', 'P')).order_by('type__code')[0]
             self.area.name = self.make_friendly_name(name)
             self.area.save()
         except:
@@ -344,7 +345,7 @@ class CodeType(models.Model):
 class Code(models.Model):
     area = models.ForeignKey(Area, related_name='codes')
     type = models.ForeignKey(CodeType, related_name='codes')
-    code = models.CharField(max_length=10)
+    code = models.CharField(max_length=30)
     objects = Manager()
 
     class Meta:
