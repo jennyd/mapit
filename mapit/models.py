@@ -86,8 +86,8 @@ class Generation(models.Model):
         }
 
 class Country(models.Model):
-    code = models.CharField(max_length=1, unique=True)
-    name = models.CharField(max_length=100, unique=True)
+    code = models.CharField(max_length=100, unique=True)
+    name = models.CharField(max_length=255, unique=True)
 
     def __unicode__(self):
         return self.name
@@ -101,11 +101,11 @@ class Type(models.Model):
     # for a few countries in the mapit/fixtures directory. In the UK we have
     # county councils (CTY), district councils (DIS), constituencies of the UK
     # Parliament (WMC), Scottish Parliament regions (SPE), and so on. The fact
-    # they are three letter codes is a hangover from the original source data
-    # we used from Ordnance Survey, and could potentially be changed.
+    # they are generally three letter codes is a hangover from the original
+    # source data we used from Ordnance Survey.
 
-    code = models.CharField(max_length=3, unique=True, help_text="A unique three letter code, eg 'CTR', 'CON', etc")
-    description = models.CharField(max_length=200, blank=True, help_text="The name of the type of area, eg 'Country', 'Constituency', etc")
+    code = models.CharField(max_length=100, unique=True, help_text="A unique code, often three letters long, eg 'CTR', 'CON', etc")
+    description = models.CharField(max_length=255, blank=True, help_text="The name of the type of area, eg 'Country', 'Constituency', etc")
 
     def __unicode__(self):
         return '%s (%s)' % (self.description, self.code)
@@ -199,7 +199,7 @@ SELECT DISTINCT mapit_area.*
         return area
 
 class Area(models.Model):
-    name = models.CharField(max_length=100, editable=False, blank=True) # Automatically set from name children
+    name = models.CharField(max_length=255, editable=False, blank=True) # Automatically set from name children
     parent_area = models.ForeignKey('self', related_name='children', null=True, blank=True)
     type = models.ForeignKey(Type, related_name='areas')
     country = models.ForeignKey(Country, related_name='areas', null=True, blank=True)
@@ -274,8 +274,8 @@ class NameType(models.Model):
     # itself; in global MaPit, the different language names are stored here
     # and displayed in the alternative names section.
 
-    code = models.CharField(max_length=10, unique=True, help_text="A unique code to identify this type of name: eg 'english' or 'iso'")
-    description = models.CharField(max_length=200, blank=True, help_text="The name of this type of name, eg 'English' or 'ISO Standard'")
+    code = models.CharField(max_length=100, unique=True, help_text="A unique code to identify this type of name: eg 'english' or 'iso'")
+    description = models.CharField(max_length=255, blank=True, help_text="The name of this type of name, eg 'English' or 'ISO Standard'")
     objects = Manager()
 
     def __unicode__(self):
@@ -284,7 +284,7 @@ class NameType(models.Model):
 class Name(models.Model):
     area = models.ForeignKey(Area, related_name='names')
     type = models.ForeignKey(NameType, related_name='names')
-    name = models.CharField(max_length=100)
+    name = models.CharField(max_length=255)
     objects = Manager()
 
     class Meta:
@@ -337,8 +337,8 @@ class CodeType(models.Model):
     # This could be extended to a more generic data store of information on an
     # object, perhaps.
 
-    code = models.CharField(max_length=10, unique=True, help_text="A unique code, eg 'ons' or 'unit_id'")
-    description = models.CharField(max_length=200, blank=True, help_text="The name of the code, eg 'Office of National Statitics' or 'Ordnance Survey ID'")
+    code = models.CharField(max_length=100, unique=True, help_text="A unique code, eg 'ons' or 'unit_id'")
+    description = models.CharField(max_length=255, blank=True, help_text="The name of the code, eg 'Office of National Statitics' or 'Ordnance Survey ID'")
 
     def __unicode__(self):
         return '%s (%s)' % (self.description, self.code)
@@ -346,7 +346,7 @@ class CodeType(models.Model):
 class Code(models.Model):
     area = models.ForeignKey(Area, related_name='codes')
     type = models.ForeignKey(CodeType, related_name='codes')
-    code = models.CharField(max_length=10)
+    code = models.CharField(max_length=100)
     objects = Manager()
 
     class Meta:
@@ -364,7 +364,7 @@ class PostcodeManager(GeoManager):
         return getattr(self.get_query_set(), attr, *args)
 
 class Postcode(models.Model):
-    postcode = models.CharField(max_length=7, db_index=True, unique=True)
+    postcode = models.CharField(max_length=100, db_index=True, unique=True)
     location = models.PointField(null=True)
     # Will hopefully use PostGIS point-in-polygon tests, but if we don't have the polygons...
     areas = models.ManyToManyField(Area, related_name='postcodes', blank=True)
